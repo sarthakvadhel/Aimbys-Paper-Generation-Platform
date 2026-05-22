@@ -1,3 +1,6 @@
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+
 @functions {
     static bool IsActive(ViewContext ctx, string controller, string action)
     {
@@ -5,6 +8,12 @@
         var a = ctx.RouteData.Values["action"]?.ToString();
         return string.Equals(c, controller, StringComparison.OrdinalIgnoreCase)
             && string.Equals(a, action, StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsControllerActive(ViewContext ctx, string controller)
+    {
+        var c = ctx.RouteData.Values["controller"]?.ToString();
+        return string.Equals(c, controller, StringComparison.OrdinalIgnoreCase);
     }
 }
 <header class="aimbys-header sticky-top">
@@ -33,6 +42,14 @@
                            aria-current="@(IsActive(ViewContext, "Home", "Index") ? "page" : null)"
                            asp-controller="Home" asp-action="Index">Home</a>
                     </li>
+                    @if (SignInManager.IsSignedIn(User))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @(IsControllerActive(ViewContext, "Projects") ? "active" : null)"
+                               aria-current="@(IsControllerActive(ViewContext, "Projects") ? "page" : null)"
+                               asp-controller="Projects" asp-action="Index">Projects</a>
+                        </li>
+                    }
                     <li class="nav-item">
                         <a class="nav-link @(IsActive(ViewContext, "Home", "Privacy") ? "active" : null)"
                            aria-current="@(IsActive(ViewContext, "Home", "Privacy") ? "page" : null)"

@@ -1,0 +1,54 @@
+@model Aimbys.Web.ViewModels.Projects.ProjectDeleteViewModel
+@{
+    ViewData["Title"] = $"Delete \u2022 {Model.Name}";
+}
+
+<section class="container">
+    <nav aria-label="breadcrumb" class="small mb-2">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item">
+                <a class="text-decoration-none" asp-action="Index">Projects</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a class="text-decoration-none" asp-action="Details" asp-route-id="@Model.Id">@Model.Name</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Delete</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="bg-body rounded shadow-sm border border-danger-subtle p-4 p-md-5">
+                <h1 class="h4 fw-bold mb-3 text-danger-emphasis">Delete project?</h1>
+
+                <p>
+                    You are about to delete <strong>@Model.Name</strong>, created
+                    @Model.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC.
+                </p>
+
+                @if (Model.DocumentCount > 0)
+                {
+                    <div class="alert alert-warning" role="alert">
+                        This project has <strong>@Model.DocumentCount</strong>
+                        document@(Model.DocumentCount == 1 ? "" : "s"). Deleting the
+                        project will permanently delete all of its documents and
+                        document versions.
+                    </div>
+                }
+                else
+                {
+                    <p class="text-secondary">This project has no documents.</p>
+                }
+
+                <p class="text-secondary small">This action cannot be undone.</p>
+
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-flex flex-wrap gap-2 mt-4">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">Yes, delete it</button>
+                    <a class="btn btn-outline-secondary"
+                       asp-action="Details" asp-route-id="@Model.Id">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,64 @@
+@model Aimbys.Web.ViewModels.Projects.ProjectDetailsViewModel
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<section class="container">
+    @if (TempData["StatusMessage"] is string status)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @status
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <nav aria-label="breadcrumb" class="small mb-2">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item">
+                <a class="text-decoration-none" asp-action="Index">Projects</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.Name</li>
+        </ol>
+    </nav>
+
+    <article class="bg-body rounded shadow-sm border p-4 p-md-5">
+        <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-between gap-3 mb-4">
+            <div>
+                <h1 class="h3 fw-bold mb-1">
+                    @Model.Name
+                    @if (Model.IsArchived)
+                    {
+                        <span class="badge text-bg-secondary align-middle ms-2">Archived</span>
+                    }
+                </h1>
+                <p class="text-secondary small mb-0">
+                    Created @Model.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC ·
+                    Updated @Model.UpdatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+                <a class="btn btn-outline-danger" asp-action="Delete" asp-route-id="@Model.Id">Delete</a>
+            </div>
+        </div>
+
+        <h2 class="h6 text-uppercase text-secondary fw-semibold" style="letter-spacing: .08em;">Description</h2>
+        @if (string.IsNullOrWhiteSpace(Model.Description))
+        {
+            <p class="text-body-tertiary fst-italic mb-4">No description provided.</p>
+        }
+        else
+        {
+            <p class="mb-4" style="white-space: pre-wrap;">@Model.Description</p>
+        }
+
+        <div class="row g-3">
+            <div class="col-sm-6 col-md-4">
+                <div class="border rounded p-3 h-100">
+                    <div class="text-secondary small text-uppercase" style="letter-spacing: .08em;">Documents</div>
+                    <div class="fs-4 fw-bold">@Model.DocumentCount</div>
+                </div>
+            </div>
+        </div>
+    </article>
+</section>
