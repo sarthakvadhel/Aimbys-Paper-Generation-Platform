@@ -1,4 +1,6 @@
+using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,14 +19,13 @@ public static class DependencyInjection
 
     /// <summary>
     /// Registers the <see cref="AppDbContext"/> against SQL Server using the
-    /// connection string at <c>ConnectionStrings:Default</c>.
+    /// connection string at <c>ConnectionStrings:Default</c>, plus ASP.NET
+    /// Core Identity (with role support) backed by the same context.
     ///
     /// The DbContext is registered even when the connection string is empty so
     /// that the Web host can start without a database. Calls into the context
     /// will fail at runtime with a clear SqlException describing the missing
-    /// configuration; this is intentional &mdash; chunk 2 of the migration plan
-    /// only sets up the schema, it does not yet require a live database to
-    /// serve a request.
+    /// configuration.
     /// </summary>
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
@@ -38,6 +39,43 @@ public static class DependencyInjection
                 connectionString ?? string.Empty,
                 sql => sql.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
         });
+
+        services
+            .AddIdentity<IdentityUser, IdentityRole>(options =>
+            {
+                // Sensible local-dev defaults; tighten in production via config.
+                options.SignIn.RequireConfirmedAccount = false;
+                options.SignIn.RequireConfirmedEmail = false;
+                options.User.RequireUniqueEmail = true;
+
+                options.Password.RequireDigit = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = false;
+
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            })
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddDefaultTokenProviders();
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.LoginPath = "/Account/Login";
+            options.LogoutPath = "/Account/Logout";
+            options.AccessDeniedPath = "/Account/AccessDenied";
+            options.ExpireTimeSpan = TimeSpan.FromHours(8);
+            options.SlidingExpiration = true;
+            options.Cookie.Name = "Aimbys.Auth";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+        });
+
+        // Bind admin-seed configuration so the seeder can opt in cleanly.
+        services.Configure<DefaultAdminOptions>(
+            configuration.GetSection(DefaultAdminOptions.SectionName));
 
         return services;
     }

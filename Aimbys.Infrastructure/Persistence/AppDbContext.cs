@@ -1,5 +1,7 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Enums;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aimbys.Infrastructure.Persistence;
@@ -7,10 +9,13 @@ namespace Aimbys.Infrastructure.Persistence;
 /// <summary>
 /// Application <see cref="DbContext"/> for the Aimbys MVP schema.
 ///
-/// All EF mapping lives here in <see cref="OnModelCreating"/> so domain
-/// entities (under <c>Aimbys.Domain</c>) stay free of EF Core attributes.
+/// Extends <see cref="IdentityDbContext{IdentityUser}"/> so the Identity
+/// tables (AspNetUsers, AspNetRoles, AspNetUserRoles, ...) live alongside
+/// the domain tables in a single SQL Server database. All domain mapping
+/// stays in <see cref="OnModelCreating"/> via Fluent API so domain entities
+/// (under <c>Aimbys.Domain</c>) remain free of EF Core attributes.
 /// </summary>
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<IdentityUser>
 {
     /// <summary>
     /// Storage column length used for ASP.NET Identity user ids. Matches the

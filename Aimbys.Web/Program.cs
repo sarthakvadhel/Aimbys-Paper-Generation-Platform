@@ -1,14 +1,26 @@
 using Aimbys.Infrastructure;
+using Aimbys.Infrastructure.Identity;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+//
+// `AutoValidateAntiforgeryToken` is registered globally so every unsafe
+// HTTP method (POST/PUT/DELETE/PATCH) requires a valid anti-forgery token.
+// A controller can opt out per-action with [IgnoreAntiforgeryToken] when
+// genuinely needed (e.g. external webhooks).
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<AutoValidateAntiforgeryTokenAttribute>();
+});
 
-// EF Core (SQL Server) baseline. The DbContext is registered even when no
-// connection string is set so the host can still start; database calls fail
-// at runtime with a SqlException pointing the operator at appsettings or
-// user-secrets. See README "EF Core / SQL Server setup" for local config.
+// EF Core (SQL Server) baseline + ASP.NET Core Identity (with role support).
+// The DbContext is registered even when no connection string is set so the
+// host can still start; database calls fail at runtime with a SqlException
+// pointing the operator at appsettings or user-secrets. See README
+// "EF Core / SQL Server setup" and "Identity / first admin user" for local
+// configuration.
 builder.Services.AddInfrastructure(builder.Configuration);
 
 if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString(DependencyInjection.ConnectionStringName)))
@@ -36,14 +48,30 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+// Authentication MUST come before Authorization. Identity wires the cookie
+// scheme into the request via UseAuthentication.
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+
+// Areas first so {area:exists} wins over the default route for /Admin/*.
+app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}")
+    .WithStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
+// Idempotent role + (optional) admin user seed. Does NOT throw if the
+// database is unreachable so the host can still serve the login page during
+// a DB outage; see IdentitySeeder for details.
+using (var scope = app.Services.CreateScope())
+{
+    await IdentitySeeder.SeedAsync(scope.ServiceProvider);
+}
 
 app.Run();
