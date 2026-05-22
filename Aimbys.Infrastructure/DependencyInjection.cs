@@ -2,16 +2,19 @@ using Aimbys.Application.Authorization;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
 using Aimbys.Domain.Events;
+using Aimbys.Application.Storage;
 using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Notifications;
 using Aimbys.Infrastructure.Persistence;
+using Aimbys.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Notifications = Aimbys.Infrastructure.Notifications;
 using Projections = Aimbys.Application.Notifications.Projections;
+using Microsoft.Extensions.Hosting;
 
 namespace Aimbys.Infrastructure;
 
@@ -104,6 +107,29 @@ public static class DependencyInjection
         services.AddScoped<INotificationProjection<ResultPublishedEvent>, Projections.ResultPublishedProjection>();
         services.AddScoped<INotificationProjection<InstituteApprovedEvent>, Projections.InstituteApprovedProjection>();
         services.AddScoped<INotificationProjection<UserSuspendedEvent>, Projections.UserSuspendedProjection>();
+        // Tenancy resolver. Scoped because it queries AppDbContext.
+        services.AddScoped<IInstituteScope, InstituteScope>();
+
+        // Local file storage. Bind options from `FileStorage` section and
+        // default RootPath to `<ContentRoot>/uploads` when unset so a fresh
+        // checkout works without configuration.
+        services
+            .AddOptions<LocalFileStorageOptions>()
+            .Bind(configuration.GetSection(LocalFileStorageOptions.SectionName))
+            .PostConfigure<IHostEnvironment>((opts, env) =>
+            {
+                if (string.IsNullOrWhiteSpace(opts.RootPath))
+                {
+                    opts.RootPath = Path.Combine(env.ContentRootPath, "uploads");
+                }
+            });
+
+        // The single concrete is registered once and exposed under both the
+        // generic and local-specific interfaces so consumers get the same
+        // scoped instance regardless of which they injected.
+        services.AddScoped<LocalFileStorageService>();
+        services.AddScoped<ILocalFileStorageService>(sp => sp.GetRequiredService<LocalFileStorageService>());
+        services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<LocalFileStorageService>());
 
         return services;
     }

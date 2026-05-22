@@ -364,9 +364,15 @@ these.
    Each stage preserves timestamp, actor, override reason. None overwrites
    another. Re-evaluation appeals create new versions of every downstream
    stage.
-9. **File storage.** All uploads go through `ILocalFileStorageService`
-   (Chunk 9) with MIME + size guards. Downloads via authorised token
-   endpoint, audit row per fetch. Folder map is fixed:
+9. **File storage.** All uploads go through `IFileStorageService`
+   (Chunk 9; the local-disk binding is `LocalFileStorageService` /
+   `ILocalFileStorageService`). Uploads are MIME- and size-validated by
+   the caller's allow-list, streamed through SHA-256, and written under
+   `<ContentRoot>/uploads/<area>/{guid}{hash-prefix}.{ext}` &mdash; no
+   user-supplied path component ever lands on disk. Downloads via the
+   authorised `GET /files/{token}` endpoint, which writes a `File.Read`
+   audit row and applies the area's permission policy
+   (`Aimbys.Domain.Permissions.FileAreaPolicies`). Folder map is fixed:
    `/uploads/{questions|papers|answers|certificates|reports|exams|coding|temp}`.
 10. **Permissions.** `[RequiresPermission("...")]` (Chunk 8) is the only
     sanctioned check on operational capabilities (`CanEvaluate`,
