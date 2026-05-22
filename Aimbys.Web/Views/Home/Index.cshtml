@@ -1,8 +1,100 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="container">
+    <div class="aimbys-hero p-4 p-md-5">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <span class="badge text-bg-light text-uppercase mb-3" style="letter-spacing: 0.12em;">
+                    Government-grade secure platform
+                </span>
+                <h1 class="display-5 fw-bold mb-3">
+                    National Assessment &amp;
+                    <span class="text-info-emphasis">Paper Generation</span>
+                    Ecosystem
+                </h1>
+                <p class="lead mb-4">
+                    Paper creation, exam conduct, evaluation, and analytics for institutions
+                    at national scale &mdash; built on ASP.NET Core MVC with Bootstrap 5.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-light btn-lg" href="#aimbys-features">Explore features</a>
+                    <a class="btn btn-outline-light btn-lg"
+                       asp-controller="Home" asp-action="Privacy">Privacy &amp; data</a>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="row row-cols-2 g-3 text-center">
+                    <div class="col">
+                        <div class="p-3 rounded bg-white bg-opacity-10 border border-white border-opacity-25">
+                            <div class="fs-4 fw-bold">2,400+</div>
+                            <div class="small opacity-75">Institutions</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 rounded bg-white bg-opacity-10 border border-white border-opacity-25">
+                            <div class="fs-4 fw-bold">1.2M+</div>
+                            <div class="small opacity-75">Users</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 rounded bg-white bg-opacity-10 border border-white border-opacity-25">
+                            <div class="fs-4 fw-bold">8.5L+</div>
+                            <div class="small opacity-75">Papers</div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 rounded bg-white bg-opacity-10 border border-white border-opacity-25">
+                            <div class="fs-4 fw-bold">42K+</div>
+                            <div class="small opacity-75">Exams</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="aimbys-features" class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h2 class="h3 fw-bold mb-2">Built for the four roles in the platform</h2>
+            <p class="text-secondary mb-0">
+                A layered ASP.NET Core MVC application backed by EF Core (SQL Server),
+                with role-scoped areas for super admins, institutes, teachers, and
+                students.
+            </p>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        <div class="col">
+            <article class="aimbys-feature-card h-100 p-4 bg-body">
+                <h3 class="h5 fw-semibold">Blueprint-driven generation</h3>
+                <p class="text-secondary mb-0">
+                    Provider-agnostic abstraction with an OpenAI Responses-style adapter
+                    drives blueprint-based paper generation.
+                </p>
+            </article>
+        </div>
+        <div class="col">
+            <article class="aimbys-feature-card h-100 p-4 bg-body">
+                <h3 class="h5 fw-semibold">Examination &amp; evaluation</h3>
+                <p class="text-secondary mb-0">
+                    Server-driven exam timer, autosave, rubric-based evaluation, and
+                    workflow-aware approvals.
+                </p>
+            </article>
+        </div>
+        <div class="col">
+            <article class="aimbys-feature-card h-100 p-4 bg-body">
+                <h3 class="h5 fw-semibold">Compliance &amp; audit</h3>
+                <p class="text-secondary mb-0">
+                    Anti-forgery on every POST, role-scoped authorization, and an
+                    append-only audit trail across state-changing actions.
+                </p>
+            </article>
+        </div>
+    </div>
+</section>

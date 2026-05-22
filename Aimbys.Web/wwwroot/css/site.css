@@ -1,31 +1,147 @@
+/* AIMBYS design tokens — re-tint Bootstrap variables to the brand palette
+   from the React reference (`src/app/components/aimbys/LandingPage.tsx`).
+   Keep additions minimal: the goal is to lean on Bootstrap utilities, not
+   reinvent them. */
+:root {
+    --aimbys-navy: #0d1b2e;
+    --aimbys-navy-soft: #1e2d44;
+    --aimbys-blue: #1d4ed8;
+    --aimbys-blue-soft: #60a5fa;
+
+    --bs-primary: var(--aimbys-blue);
+    --bs-primary-rgb: 29, 78, 216;
+    --bs-link-color: var(--aimbys-blue);
+    --bs-link-color-rgb: 29, 78, 216;
+    --bs-link-hover-color: #1e40af;
+    --bs-link-hover-color-rgb: 30, 64, 175;
+}
+
 html {
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
+    scroll-behavior: smooth;
 }
 
 body {
-  margin-bottom: 60px;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+/* --- Header / nav ---------------------------------------------------- */
+
+.aimbys-header {
+    background: var(--aimbys-navy);
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+.aimbys-header .navbar-brand,
+.aimbys-header .nav-link {
+    color: #fff;
+}
+
+.aimbys-header .nav-link:hover,
+.aimbys-header .nav-link:focus {
+    color: var(--aimbys-blue-soft);
+}
+
+.aimbys-header .nav-link.active {
+    color: var(--aimbys-blue-soft);
+    font-weight: 600;
+}
+
+.aimbys-brand-tagline {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+}
+
+.aimbys-logo-mark {
+    width: 2rem;
+    height: 2rem;
+    background: var(--aimbys-blue);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.25rem;
+    font-weight: 800;
+    font-size: 0.95rem;
+}
+
+.aimbys-pulse-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #16a34a;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.55);
+    animation: aimbys-pulse 2s infinite;
+}
+
+@keyframes aimbys-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(22, 163, 74, 0.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0);    }
+    100% { box-shadow: 0 0 0 0   rgba(22, 163, 74, 0);    }
+}
+
+/* --- Hero ------------------------------------------------------------ */
+
+.aimbys-hero {
+    background: linear-gradient(135deg, #0d1b2e 0%, #1e3a8a 60%, #1d4ed8 100%);
+    color: #fff;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.aimbys-hero h1 {
+    line-height: 1.15;
+}
+
+.aimbys-hero .lead {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.aimbys-hero .btn-outline-light {
+    --bs-btn-hover-color: var(--aimbys-navy);
+}
+
+/* --- Cards / surfaces ------------------------------------------------ */
+
+.aimbys-feature-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.aimbys-feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(13, 27, 46, 0.08);
+}
+
+/* --- Footer ---------------------------------------------------------- */
+
+.aimbys-footer {
+    background: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.aimbys-badge-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* --- Focus ring tied to brand primary -------------------------------- */
+
+.btn:focus,
+.btn:active:focus,
+.form-control:focus,
+.form-check-input:focus,
+.btn-link.nav-link:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* --- Reduced motion -------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .aimbys-pulse-dot { animation: none; }
+    .aimbys-feature-card { transition: none; }
+    .aimbys-feature-card:hover { transform: none; }
 }
