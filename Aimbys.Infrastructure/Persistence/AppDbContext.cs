@@ -1,5 +1,4 @@
 using Aimbys.Domain.Entities;
-using Aimbys.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -7,13 +6,18 @@ using Microsoft.EntityFrameworkCore;
 namespace Aimbys.Infrastructure.Persistence;
 
 /// <summary>
-/// Application <see cref="DbContext"/> for the Aimbys MVP schema.
+/// Application <see cref="DbContext"/> for the Aimbys platform.
 ///
-/// Extends <see cref="IdentityDbContext{IdentityUser}"/> so the Identity
-/// tables (AspNetUsers, AspNetRoles, AspNetUserRoles, ...) live alongside
-/// the domain tables in a single SQL Server database. All domain mapping
-/// stays in <see cref="OnModelCreating"/> via Fluent API so domain entities
-/// (under <c>Aimbys.Domain</c>) remain free of EF Core attributes.
+/// Schema scope at this stage: the <b>organisational foundation</b>
+/// (Institute, Department, AcademicYear, Subject, ClassBatch,
+/// TeacherProfile, StudentProfile) plus the existing <see cref="AuditLog"/>
+/// and ASP.NET Identity tables. Workflow entities &mdash; Blueprint,
+/// AssessmentDesign, Question, Paper, Exam, Evaluation, Moderation,
+/// Analytics &mdash; arrive in subsequent chunks (NEW CHUNK 5+) so the
+/// data model and the controllers / views ship together.
+///
+/// All EF mapping lives in <see cref="OnModelCreating"/> so domain
+/// entities (under <c>Aimbys.Domain</c>) stay free of EF Core attributes.
 /// </summary>
 public class AppDbContext : IdentityDbContext<IdentityUser>
 {
@@ -27,167 +31,259 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     {
     }
 
-    public DbSet<Project> Projects => Set<Project>();
-    public DbSet<Document> Documents => Set<Document>();
-    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
-    public DbSet<Template> Templates => Set<Template>();
-    public DbSet<TemplateVersion> TemplateVersions => Set<TemplateVersion>();
-    public DbSet<Job> Jobs => Set<Job>();
-    public DbSet<ExportArtifact> ExportArtifacts => Set<ExportArtifact>();
+    public DbSet<Institute> Institutes => Set<Institute>();
+    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<AcademicYear> AcademicYears => Set<AcademicYear>();
+    public DbSet<Subject> Subjects => Set<Subject>();
+    public DbSet<ClassBatch> ClassBatches => Set<ClassBatch>();
+    public DbSet<TeacherProfile> TeacherProfiles => Set<TeacherProfile>();
+    public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Configures the AspNet* Identity tables first.
         base.OnModelCreating(modelBuilder);
 
-        // ---------- Project --------------------------------------------------
-        modelBuilder.Entity<Project>(b =>
+        // ---------- Institute -----------------------------------------------
+        modelBuilder.Entity<Institute>(b =>
         {
-            b.ToTable("Projects");
+            b.ToTable("Institutes");
             b.HasKey(x => x.Id);
+
             b.Property(x => x.Name).IsRequired().HasMaxLength(200);
-            b.Property(x => x.Description).HasMaxLength(2000);
-            b.Property(x => x.OwnerUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.Code).IsRequired().HasMaxLength(50);
+            b.Property(x => x.City).IsRequired().HasMaxLength(120);
+            b.Property(x => x.State).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Country).IsRequired().HasMaxLength(2);
+            b.Property(x => x.ContactEmail).IsRequired().HasMaxLength(256);
+            b.Property(x => x.ContactPhone).HasMaxLength(32);
+            b.Property(x => x.LogoUrl).HasMaxLength(1000);
+            b.Property(x => x.PrimaryColorHex).HasMaxLength(7);
+            b.Property(x => x.ApprovedByUserId).HasMaxLength(IdentityUserIdLength);
+
+            b.Property(x => x.Type).HasConversion<int>().IsRequired();
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.LicenseTier).HasConversion<int>().IsRequired();
+
             b.Property(x => x.CreatedAtUtc).IsRequired();
             b.Property(x => x.UpdatedAtUtc).IsRequired();
 
-            b.HasIndex(x => x.OwnerUserId).HasDatabaseName("IX_Projects_OwnerUserId");
-            b.HasIndex(x => new { x.OwnerUserId, x.IsArchived })
-             .HasDatabaseName("IX_Projects_OwnerUserId_IsArchived");
+            // Globally unique short code. Filtered to non-deleted rows so a
+            // rejected onboarding attempt's code can be reused.
+            b.HasIndex(x => x.Code)
+             .IsUnique()
+             .HasFilter("[IsDeleted] = 0")
+             .HasDatabaseName("UX_Institutes_Code");
+
+            b.HasIndex(x => x.Status).HasDatabaseName("IX_Institutes_Status");
+            b.HasIndex(x => x.IsDeleted).HasDatabaseName("IX_Institutes_IsDeleted");
         });
 
-        // ---------- Document -------------------------------------------------
-        modelBuilder.Entity<Document>(b =>
+        // ---------- Department ----------------------------------------------
+        modelBuilder.Entity<Department>(b =>
         {
-            b.ToTable("Documents");
+            b.ToTable("Departments");
             b.HasKey(x => x.Id);
-            b.Property(x => x.Title).IsRequired().HasMaxLength(300);
+
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Code).HasMaxLength(50);
             b.Property(x => x.CreatedAtUtc).IsRequired();
             b.Property(x => x.UpdatedAtUtc).IsRequired();
 
-            b.HasOne(x => x.Project)
-             .WithMany(p => p.Documents)
-             .HasForeignKey(x => x.ProjectId)
-             .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Institute)
+             .WithMany(i => i.Departments)
+             .HasForeignKey(x => x.InstituteId)
+             // Restrict so a tenant can never be deleted accidentally and
+             // also so the multi-cascade-path warning (Department->Subject and
+             // Institute->Subject both cascade) doesn't apply.
+             .OnDelete(DeleteBehavior.Restrict);
 
-            b.HasOne(x => x.CurrentVersion)
+            // The HoD pointer is NoAction to avoid a cycle between
+            // Department, TeacherProfile and Institute.
+            b.HasOne(x => x.HeadTeacher)
              .WithMany()
-             .HasForeignKey(x => x.CurrentVersionId)
-             // Avoid multiple cascade paths: parent->Versions cascades, this
-             // pointer must not.
+             .HasForeignKey(x => x.HeadTeacherProfileId)
              .OnDelete(DeleteBehavior.NoAction);
 
-            b.HasIndex(x => x.ProjectId).HasDatabaseName("IX_Documents_ProjectId");
-        });
-
-        // ---------- DocumentVersion ------------------------------------------
-        modelBuilder.Entity<DocumentVersion>(b =>
-        {
-            b.ToTable("DocumentVersions");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.VersionNumber).IsRequired();
-            b.Property(x => x.ContentHtml).IsRequired().HasColumnType("nvarchar(max)");
-            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
-            b.Property(x => x.CreatedAtUtc).IsRequired();
-
-            b.HasOne(x => x.Document)
-             .WithMany(d => d.Versions)
-             .HasForeignKey(x => x.DocumentId)
-             .OnDelete(DeleteBehavior.Cascade);
-
-            b.HasIndex(x => new { x.DocumentId, x.VersionNumber })
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_Departments_InstituteId");
+            b.HasIndex(x => new { x.InstituteId, x.Code })
              .IsUnique()
-             .HasDatabaseName("UX_DocumentVersions_DocumentId_VersionNumber");
+             .HasFilter("[Code] IS NOT NULL")
+             .HasDatabaseName("UX_Departments_InstituteId_Code");
         });
 
-        // ---------- Template -------------------------------------------------
-        modelBuilder.Entity<Template>(b =>
+        // ---------- AcademicYear --------------------------------------------
+        modelBuilder.Entity<AcademicYear>(b =>
         {
-            b.ToTable("Templates");
+            b.ToTable("AcademicYears");
             b.HasKey(x => x.Id);
-            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
-            b.Property(x => x.Description).HasMaxLength(2000);
-            b.Property(x => x.OwnerUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+
+            b.Property(x => x.Name).IsRequired().HasMaxLength(50);
             b.Property(x => x.CreatedAtUtc).IsRequired();
             b.Property(x => x.UpdatedAtUtc).IsRequired();
 
-            b.HasOne(x => x.CurrentVersion)
+            b.HasOne(x => x.Institute)
+             .WithMany(i => i.AcademicYears)
+             .HasForeignKey(x => x.InstituteId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_AcademicYears_InstituteId");
+            b.HasIndex(x => new { x.InstituteId, x.Name })
+             .IsUnique()
+             .HasDatabaseName("UX_AcademicYears_InstituteId_Name");
+            b.HasIndex(x => new { x.InstituteId, x.IsCurrent })
+             .HasDatabaseName("IX_AcademicYears_InstituteId_IsCurrent");
+        });
+
+        // ---------- Subject -------------------------------------------------
+        modelBuilder.Entity<Subject>(b =>
+        {
+            b.ToTable("Subjects");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Code).HasMaxLength(50);
+            b.Property(x => x.Description).HasMaxLength(2000);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
+
+            b.HasOne(x => x.Institute)
+             .WithMany(i => i.Subjects)
+             .HasForeignKey(x => x.InstituteId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(x => x.Department)
+             .WithMany(d => d.Subjects)
+             .HasForeignKey(x => x.DepartmentId)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_Subjects_InstituteId");
+            b.HasIndex(x => new { x.InstituteId, x.Code })
+             .IsUnique()
+             .HasFilter("[Code] IS NOT NULL")
+             .HasDatabaseName("UX_Subjects_InstituteId_Code");
+        });
+
+        // ---------- ClassBatch ---------------------------------------------
+        modelBuilder.Entity<ClassBatch>(b =>
+        {
+            b.ToTable("ClassBatches");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            b.Property(x => x.GradeLevel).HasMaxLength(40);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
+
+            b.HasOne(x => x.Institute)
+             .WithMany(i => i.ClassBatches)
+             .HasForeignKey(x => x.InstituteId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(x => x.AcademicYear)
+             .WithMany(y => y.ClassBatches)
+             .HasForeignKey(x => x.AcademicYearId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(x => x.Department)
+             .WithMany(d => d.ClassBatches)
+             .HasForeignKey(x => x.DepartmentId)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasOne(x => x.ClassTeacher)
              .WithMany()
-             .HasForeignKey(x => x.CurrentVersionId)
+             .HasForeignKey(x => x.ClassTeacherProfileId)
              .OnDelete(DeleteBehavior.NoAction);
 
-            b.HasIndex(x => x.OwnerUserId).HasDatabaseName("IX_Templates_OwnerUserId");
-            b.HasIndex(x => x.IsPublic).HasDatabaseName("IX_Templates_IsPublic");
-        });
-
-        // ---------- TemplateVersion ------------------------------------------
-        modelBuilder.Entity<TemplateVersion>(b =>
-        {
-            b.ToTable("TemplateVersions");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.VersionNumber).IsRequired();
-            b.Property(x => x.ContentHtml).IsRequired().HasColumnType("nvarchar(max)");
-            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
-            b.Property(x => x.CreatedAtUtc).IsRequired();
-
-            b.HasOne(x => x.Template)
-             .WithMany(t => t.Versions)
-             .HasForeignKey(x => x.TemplateId)
-             .OnDelete(DeleteBehavior.Cascade);
-
-            b.HasIndex(x => new { x.TemplateId, x.VersionNumber })
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_ClassBatches_InstituteId");
+            b.HasIndex(x => new { x.InstituteId, x.AcademicYearId, x.Name })
              .IsUnique()
-             .HasDatabaseName("UX_TemplateVersions_TemplateId_VersionNumber");
+             .HasDatabaseName("UX_ClassBatches_InstituteId_AcademicYearId_Name");
         });
 
-        // ---------- Job ------------------------------------------------------
-        modelBuilder.Entity<Job>(b =>
+        // ---------- TeacherProfile -----------------------------------------
+        modelBuilder.Entity<TeacherProfile>(b =>
         {
-            b.ToTable("Jobs");
+            b.ToTable("TeacherProfiles");
             b.HasKey(x => x.Id);
-            b.Property(x => x.Provider).IsRequired().HasMaxLength(100);
-            b.Property(x => x.RequestPayload).IsRequired().HasColumnType("nvarchar(max)");
-            b.Property(x => x.ResponsePayload).HasColumnType("nvarchar(max)");
-            b.Property(x => x.ErrorMessage).HasMaxLength(4000);
-            b.Property(x => x.RequestedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+
+            b.Property(x => x.UserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.DisplayName).IsRequired().HasMaxLength(200);
+            b.Property(x => x.EmployeeCode).HasMaxLength(50);
+            b.Property(x => x.Designation).HasMaxLength(100);
             b.Property(x => x.Status).HasConversion<int>().IsRequired();
             b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
 
-            b.HasOne(x => x.Project)
-             .WithMany(p => p.Jobs)
-             .HasForeignKey(x => x.ProjectId)
-             // SetNull keeps audit history when a project is deleted.
+            b.HasOne(x => x.Institute)
+             .WithMany(i => i.Teachers)
+             .HasForeignKey(x => x.InstituteId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne(x => x.Department)
+             .WithMany(d => d.Teachers)
+             .HasForeignKey(x => x.DepartmentId)
              .OnDelete(DeleteBehavior.SetNull);
 
-            b.HasOne(x => x.Template)
-             .WithMany(t => t.Jobs)
-             .HasForeignKey(x => x.TemplateId)
-             .OnDelete(DeleteBehavior.SetNull);
+            // FK to AspNetUsers via UserId. Restrict so deleting an Identity
+            // user can't silently orphan institute records.
+            b.HasOne<IdentityUser>()
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Restrict);
 
-            b.HasIndex(x => new { x.Status, x.CreatedAtUtc })
-             .HasDatabaseName("IX_Jobs_Status_CreatedAtUtc");
-            b.HasIndex(x => x.RequestedByUserId).HasDatabaseName("IX_Jobs_RequestedByUserId");
+            b.HasIndex(x => x.UserId)
+             .IsUnique()
+             .HasDatabaseName("UX_TeacherProfiles_UserId");
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_TeacherProfiles_InstituteId");
+            b.HasIndex(x => new { x.InstituteId, x.EmployeeCode })
+             .IsUnique()
+             .HasFilter("[EmployeeCode] IS NOT NULL")
+             .HasDatabaseName("UX_TeacherProfiles_InstituteId_EmployeeCode");
         });
 
-        // ---------- ExportArtifact -------------------------------------------
-        modelBuilder.Entity<ExportArtifact>(b =>
+        // ---------- StudentProfile -----------------------------------------
+        modelBuilder.Entity<StudentProfile>(b =>
         {
-            b.ToTable("ExportArtifacts");
+            b.ToTable("StudentProfiles");
             b.HasKey(x => x.Id);
-            b.Property(x => x.Format).HasConversion<int>().IsRequired();
-            b.Property(x => x.StorageUri).IsRequired().HasMaxLength(1000);
-            b.Property(x => x.CreatedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+
+            b.Property(x => x.UserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.DisplayName).IsRequired().HasMaxLength(200);
+            b.Property(x => x.AdmissionNumber).HasMaxLength(50);
+            b.Property(x => x.RollNumber).HasMaxLength(50);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
             b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
 
-            b.HasOne(x => x.Document)
-             .WithMany(d => d.Exports)
-             .HasForeignKey(x => x.DocumentId)
-             .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(x => x.Institute)
+             .WithMany(i => i.Students)
+             .HasForeignKey(x => x.InstituteId)
+             .OnDelete(DeleteBehavior.Restrict);
 
-            b.HasIndex(x => x.DocumentId).HasDatabaseName("IX_ExportArtifacts_DocumentId");
+            b.HasOne(x => x.ClassBatch)
+             .WithMany(c => c.Students)
+             .HasForeignKey(x => x.ClassBatchId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasOne<IdentityUser>()
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => x.UserId)
+             .IsUnique()
+             .HasDatabaseName("UX_StudentProfiles_UserId");
+            b.HasIndex(x => new { x.InstituteId, x.ClassBatchId })
+             .HasDatabaseName("IX_StudentProfiles_InstituteId_ClassBatchId");
+            b.HasIndex(x => new { x.InstituteId, x.AdmissionNumber })
+             .IsUnique()
+             .HasFilter("[AdmissionNumber] IS NOT NULL")
+             .HasDatabaseName("UX_StudentProfiles_InstituteId_AdmissionNumber");
         });
 
-        // ---------- AuditLog -------------------------------------------------
+        // ---------- AuditLog ------------------------------------------------
         modelBuilder.Entity<AuditLog>(b =>
         {
             b.ToTable("AuditLogs");
