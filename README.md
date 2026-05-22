@@ -105,11 +105,23 @@ npm run build    # vite build
 
   ### Identity / first admin user
 
-  ASP.NET Core Identity is wired to `AppDbContext`. Two roles are seeded at
-  startup (idempotent): **Admin** and **User**. New users registered via
-  `/Account/Register` are placed in the `User` role automatically.
+  ASP.NET Core Identity is wired to `AppDbContext`. Four canonical roles are
+  seeded at startup (idempotent): **`SuperAdmin`**, **`InstituteAdmin`**,
+  **`Teacher`**, **`Student`**. New users registered via `/Account/Register`
+  land with **no role** — in the PARAKH model an Institute Admin invites
+  them and assigns the appropriate role + permission flags (Chunk 17). Until
+  then a registered user can sign in but every role-area URL denies them.
 
-  **Promote the first admin via configuration**, *before* the host starts:
+  Operational capabilities like *Evaluator*, *Moderator*, *Reviewer*,
+  *Proctor* are **not** Identity roles. They are the 13 boolean flags on
+  `TeacherProfile` (`CanCreateQuestions`, `CanGeneratePaper`,
+  `CanManageBlueprints`, `CanEvaluate`, `CanModerate`, `CanPublishResults`,
+  `CanScheduleExam`, `CanReviewCodingQuestions`, `CanManageQuestionBank`,
+  `CanAssignEvaluators`, `CanManageAnalytics`, `CanApproveQuestions`,
+  `CanProctor`), checked by `IPermissionGuard` and the
+  `[RequiresPermission("...")]` action filter.
+
+  **Bootstrap a Super Admin via configuration**, *before* the host starts:
 
   ```sh
   dotnet user-secrets --project Aimbys.Web set Identity:DefaultAdmin:Email "you@example.com"
@@ -117,18 +129,19 @@ npm run build    # vite build
   ```
 
   On the next `dotnet run`, the seeder creates the user (if missing) and
-  ensures it is in the `Admin` role. The seed is safe to re-run; it
+  ensures it is in the `SuperAdmin` role. The seed is safe to re-run; it
   skips entirely when either key is unset.
 
   Manual smoke flow once a SQL Server is reachable:
 
   1. `dotnet ef database update --project Aimbys.Infrastructure --startup-project Aimbys.Web`
   2. `dotnet run --project Aimbys.Web`
-  3. Visit `/Account/Register`, create a regular user — it lands in `User`.
+  3. Visit `/Account/Register`, create a user — it lands with no role.
   4. As that user, visit `/Admin` — you should be redirected to
      `/Account/AccessDenied` (HTTP 403).
-  5. Sign out, sign in as the seeded default admin, visit `/Admin` — the
-     placeholder admin page renders.
+  5. Sign out, sign in as the seeded `SuperAdmin`, visit `/Admin` — the
+     placeholder page renders. (Chunk 13 replaces this with four
+     role-specific MVC Areas.)
 
 There are no tests and no CI in this repo today.
 
