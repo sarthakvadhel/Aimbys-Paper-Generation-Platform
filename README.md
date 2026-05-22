@@ -321,79 +321,176 @@ client-side via `jquery-validation-unobtrusive`.
 | Theme / dark-mode toggle                       | `POST /Profile/Theme`                                     | `Theme ("light"|"dark")`                                                                     | User                  |
 | Export endpoints (institutes, audit, reports)  | `GET /<Area>/<Resource>/Export?format=csv|xlsx&...`       | filter query string                                                                          | role-gated            |
 
-### 6. Recommended conversion order
+### 6. Architectural rules (binding on every chunk)
 
-This sequencing matches the upcoming chunk plan. Each step builds on the
-previous, and each can ship independently behind feature flags / route
-authorization.
+Twelve non-negotiable rules. Every chunk PR description self-attests against
+these.
 
-1. **Solution scaffold + `global.json` pin to `net10.0`** (no UI yet).
-2. **Identity + Account area** — login, logout, forgot-password stub,
-   redirect-after-login by role. Replaces `LandingPage` login half.
-3. **Marketing home** at `/` — replaces `LandingPage` left panel.
-4. **Shared layouts + role shells + read-only dashboards** — `_Layout`,
-   `_LayoutAnonymous`, `_RoleLayout` per area, partials, view components,
-   four dashboard pages with seed data.
-5. **Question Bank** — institute-wide and teacher "My Questions". TinyMCE
-   integrated for Create/Edit. Excel import endpoint.
-6. **Paper Generation** — list, two-pane editor, blueprint, preview.
-   Introduce `IPaperGenerationProvider` + `OpenAIResponsesProvider` as the
-   first adapter.
-7. **Exam runtime** — lobby, attempt page with server-driven timer, autosave,
-   flag, submit. Integrity (no shell, anti-cheat hooks left as stubs).
-8. **Evaluation Desk** — inbox + per-submission scoring with rubric autosave.
-9. **Results + analytics** — student results, institute analytics, global
-   analytics. Chart.js + JSON endpoints.
-10. **Admin tooling** — institute management, user management, approvals
-    workflows, audit log viewer, system health, broadcasts, licenses,
-    security monitor.
-11. **Hardening** — CSP, output caching where safe, full anti-forgery filter,
-    rate-limit policies on auth and export endpoints.
+1. **Layering.** Controllers ≤ ~15 lines per action: validate → authorize →
+   map ViewModel → call service → return view. Every cross-action workflow
+   lives in `Aimbys.Application`. No business logic in Razor views or JS.
+2. **Workflow-driven, not switch-driven.** No controller contains a `switch`
+   over a status enum. State changes go through
+   `IWorkflowService.TransitionAsync(...)` against the workflow definition
+   for that domain (Chunk 11).
+3. **Tenancy.** `IInstituteScope.CurrentInstituteId` filters every query.
+   Cross-tenant access ⇒ 404 (never 403 — avoids existence disclosure).
+4. **Anti-forgery.** Global `AutoValidateAntiforgeryToken` is on (PR #5).
+   No chunk disables it. POST actions still annotated `[ValidateAntiForgeryToken]`
+   for clarity.
+5. **Audit.** Every state change writes an `AuditLog` row via `IAuditWriter`.
+   Verb format `EntityType.Action` (e.g. `Question.Approved`,
+   `Result.Published`, `Institute.Suspended`).
+6. **Sanitisation.** All TinyMCE / authored HTML passes `IHtmlSanitizer`
+   (allow-list policy) before persistence.
+7. **Immutability.** Approved questions, frozen blueprint versions, locked
+   paper versions, published results are read-only. Edits create new
+   versions, never mutate predecessors.
+8. **Score preservation.** Four-stage pipeline:
+   `DraftScore → EvaluatedScore → ModeratedScore → FinalPublishedScore`.
+   Each stage preserves timestamp, actor, override reason. None overwrites
+   another. Re-evaluation appeals create new versions of every downstream
+   stage.
+9. **File storage.** All uploads go through `ILocalFileStorageService`
+   (Chunk 9) with MIME + size guards. Downloads via authorised token
+   endpoint, audit row per fetch. Folder map is fixed:
+   `/uploads/{questions|papers|answers|certificates|reports|exams|coding|temp}`.
+10. **Permissions.** `[RequiresPermission("...")]` (Chunk 8) is the only
+    sanctioned check on operational capabilities (`CanEvaluate`,
+    `CanModerate`, etc.). No raw `User.IsInRole("Evaluator")` — those are
+    not Identity roles.
+11. **Identity roles.** Exactly four:
+    `SuperAdmin`, `InstituteAdmin`, `Teacher`, `Student`. Anything else
+    (Evaluator, Moderator, Proctor, Reviewer, …) is a permission flag on
+    `TeacherProfile`, dynamically assigned by the Institute Admin.
+12. **No business logic in JS.** UI is observer-only. Every rule (timer
+    cutoff, scoring math, eligibility, transition gating) re-checked on the
+    server. Client-side enforcement is convenience, not security.
 
-### 7. Definition of Done (per screen)
+### 7. Build roadmap — Chunks 8 through 34
 
-A migrated screen is "done" only when **all** of these hold. This is the
-checklist every chunk PR must self-attest.
+Twenty-seven chunks ahead, grouped into ten phases. Every chunk is a single
+PR titled exactly as shown.
 
-- [ ] Route registered, reachable from the corresponding sidebar / nav link.
-- [ ] Controller has `[Authorize(Roles = "...")]`; ownership / tenancy checked
-      where required (e.g. teacher's questions, student's attempt, institute
-      scope).
-- [ ] View renders against a dedicated ViewModel (no EF entities leaked into
-      the view).
+> Phase A lays the architectural groundwork (no user-visible features) so
+> Phases B onward stay small and focused.
+
+#### Phase A — Architectural prerequisites
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 8 | `Refactor: 13 teacher-permission flags + canonical Identity roles` | Replaces the 6 placeholder flags on `TeacherProfile` with the canonical 13 (`CanCreateQuestions`, `CanGeneratePaper`, `CanManageBlueprints`, `CanEvaluate`, `CanModerate`, `CanPublishResults`, `CanScheduleExam`, `CanReviewCodingQuestions`, `CanManageQuestionBank`, `CanAssignEvaluators`, `CanManageAnalytics`, `CanApproveQuestions`, `CanProctor`). Shrinks `Roles.cs` to the canonical four. Adds `IPermissionGuard` + `[RequiresPermission(...)]` action filter. EF migration. |
+| 9 | `Infra: ILocalFileStorageService + secure-download authorization` | Centralised local storage with MIME / size guards, sha256 content hash, audit-tracked `FileAsset` rows, token-based authorised downloads. Fixed folder map. |
+| 10 | `Infra: domain events + in-app notifications + activity feed` | `IDomainEventDispatcher` (post-commit via `ISaveChangesInterceptor`), `Notification` entity (institute-scoped), `INotificationService`, `NotificationsViewComponent` for the topbar bell, activity-feed pages per area. |
+| 11 | `Infra: workflow engine (states, transitions, queues, assignments)` | `WorkflowDefinition` / `WorkflowInstance` / `WorkflowState` / `ApprovalQueue` / `TaskAssignment` / `ReviewerAssignment` / `ModerationQueue`. Pre-registered definitions: `QuestionApproval`, `PaperApproval`, `EvaluationReview`, `ResultPublication`, `InstituteApproval`. Audit + domain event fired on every transition. |
+
+#### Phase B — Anonymous & role shells
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 12 | `UI: PARAKH role-pick landing + first-view redirect on sign-in` | Recreates `LandingPage.tsx` (hero + stats + features + role tiles + login). `AccountController.Login` redirects to `/SuperAdmin`, `/Institute`, `/Teacher`, or `/Student` based on the user's Identity role. |
+| 13 | `UI: SuperAdmin / Institute / Teacher / Student area layouts` | Four MVC Areas. One shared `_RoleLayout.cshtml` parameterised by accent (`#7c3aed` / `#1d4ed8` / `#0369a1` / `#15803d`). Partials: `_RoleSidebar`, `_RoleTopBar`, `_MobileBottomNav`. ViewComponents: `RoleNavViewComponent`, `NotificationsViewComponent`, `UserMenuViewComponent`. Replaces the placeholder `/Admin` from PR #5. |
+| 14 | `UI: role dashboards + KpiCard / ChartCard / DataTable view components` | Chart.js (CDN, SRI). Reusable view-components (`KpiCardViewComponent`, `ChartCardViewComponent`) and partials (`_DataTable`, `_FilterBar`, `_PaginationPartial`, `_StatusBadge`, `_RoleBadge`). All four dashboards rendered with empty-state copy + sample chart endpoints. |
+
+#### Phase C — Tenancy lifecycle
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 15 | `Feature: institute lifecycle (onboard / approve / reject / suspend / reactivate)` | Super Admin governance: thin `InstitutesController` over `IInstituteOnboardingService`. Every state transition runs through the `InstituteApproval` workflow (Chunk 11). Pending-approval KPI on Super Admin dashboard reads from the workflow's open queue. |
+| 16 | `Feature: institute org tree (departments, years, subjects, class batches, streams, majors)` | New entities `Stream` and `Major` for cohort targeting; `Subject.StreamId?`/`MajorId?`, `ClassBatch.StreamId?`. Seven institute-admin CRUD controllers under `/Institute/Settings/*`. `IOrgTreeService` enforces invariants (one current academic year, no delete with active children). |
+| 17 | `Feature: invite users + assign 13 teacher permission flags` | `UsersController` Index/Invite/Edit. Invite POST creates `IdentityUser` + matching profile + reset token, fires `UserInvited` event, hands off to `IUserInviteNotifier` (logging stub). Edit form lets the institute admin toggle the 13 permissions plus role-within-the-canonical-four / status / class batch. |
+
+#### Phase D — Question authoring lifecycle
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 18 | `Feature: question authoring + revision history (TinyMCE, MCQ / Descriptive / Coding / Fill / TITA)` | `Question`, `QuestionVersion` (one per edit), `QuestionRevisionHistory` view, `QuestionOption`, `QuestionRubricCriterion`, `QuestionTestCase`, `QuestionAsset` (uses Chunk 9). Full status set `Draft/Submitted/UnderReview/Approved/Rejected/Retired/Archived`. Approved questions are immutable — Edit creates a new Draft version against the same `QuestionId`. TinyMCE wired with sanitised image upload. Excel import (`.xlsx`, ≤ 10 MB). |
+| 19 | `Feature: question approval workflow (review queue + reviewer assignment)` | `QuestionReview`, `QuestionApproval`, `QuestionModeration` side-tables. `QuestionApproval` workflow drives `Submitted → UnderReview → Approved | Rejected`, with reviewer assignment via `ReviewerAssignment`. Required comment on rejection. `IQuestionLifecycleService` orchestrates every transition. |
+| 20 | `Feature: question usage + difficulty audit (nightly aggregation)` | `QuestionUsageAnalytics`, `QuestionDifficultyAudit`. `QuestionAnalyticsAggregator` `BackgroundService` runs nightly (`PeriodicTimer`). Question-bank list rows render usage count + quality score (matches `QuestionBank.tsx`). |
+
+#### Phase E — Blueprint + paper authoring
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 21 | `Feature: blueprint engine + cohort targeting (stream / major / dept / year / batch)` | `AssessmentDesign`, `Blueprint`, `BlueprintVersion`, `BlueprintSection`, `BlueprintConstraint` (chapter × competency × difficulty cell), `BlueprintCohort` (m:n with Stream/Major/Department/AcademicYear/ClassBatch), `Competency`, `Chapter`. Versioning rule: editing a Published blueprint creates a new `BlueprintVersion`; once a Paper references a version, that version is `IsLocked = true`. `IBlueprintValidator` re-checks every cell server-side. |
+| 22 | `Feature: paper generation (manual + blueprint-driven) + version freeze + approval` | `Paper`, `PaperVersion` (immutable), `PaperSection`, `PaperQuestion` (ordered join), `PublishedSnapshot` (denormalised JSON taken at exam scheduling — analytics references this so historical reports survive future edits). Two authoring tabs (`PaperGeneration.tsx` reference): Question Bank picker + Auto Blueprint. `PaperApproval` workflow drives `Draft → SubmittedForApproval → Approved | Returned`. Once an `Exam` references a `PaperVersion`, that version locks. |
+
+#### Phase F — Examination runtime
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 23 | `Feature: exam scheduling + student attempt with server-driven timer + autosave` | `Exam` (FK to `PaperVersionId`), `ExamAttempt`, `ExamAttemptAnswer`. Institute-side scheduling (gated by `CanScheduleExam`). Student lobby + `Take/{attemptId}` rendering distinct full-bleed `_LayoutExam.cshtml`. Server-driven timer; autosave / flag / submit POSTs. Auto-evaluation on submit for objective types only. `IExamRuntimeService` orchestrates everything. |
+| 24 | `Feature: configurable exam security profile (fullscreen / tab-switch / heartbeat / event timeline)` | New entities: `ExamSecurityProfile` (per Paper, configured by paper setter), `ExamSession` (device fingerprint, IP, UA), `ExamEvent` (timeline row: `Started`, `FullscreenExit`, `TabBlur`, `Paste`, `KeyboardShortcut`, `ConnectionLost`, `ConnectionRestored`, `Heartbeat`, `AutoSubmitted`, `Submitted`). `ExamHeartbeatController` POST `/Student/Exams/Heartbeat`. Client JS hooks gated by the security profile flags. Suspicious-activity flag on `ExamAttempt` surfaces to evaluator + moderator. `IExamSecurityService` evaluates incoming events. |
+
+#### Phase G — Evaluation, moderation, results
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 25 | `Feature: evaluation desk (rubric scoring, DraftScore → EvaluatedScore preserved)` | `ScoringScheme` (rubric template per `(PaperVersionId, QuestionId)`, frozen at paper-version freeze), `Evaluation`, `RubricScore`, `DraftScore` (autosave per criterion), `EvaluatedScore` (final on submit). `EvaluationReview` workflow governs `Pending → InProgress → Submitted → Returned`. `IEvaluationService` is the single place rubric values turn into scores. |
+| 26 | `Feature: moderation desk + ModeratedScore + override audit` | `Moderation`, `ModeratedScore`, `ModerationSnapshot` (denormalised JSON of evaluator marks at moderation-open time). `ModerationController` Approve / RequireChanges / Override. Override does **not** mutate `EvaluatedScore` — it writes a new `ModeratedScore` row, both visible in the answer's score timeline. |
+| 27 | `Feature: result publication + re-evaluation appeals` | `Result`, `FinalPublishedScore` (computed from `ModeratedScore` after publication), `ResultAppeal` (`Open / UnderReview / UpheldOriginal / Adjusted / Closed`). Publication gated by `ResultPublication` workflow: requires 100% of attempts moderated. Batch ranks computed at publish time. Appeal flow re-opens an `Evaluation`, re-runs Chunks 25–26 for that attempt, writes new versions of every downstream score (never overwriting). |
+
+#### Phase H — Analytics
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 28 | `Feature: AnalyticsSnapshot + AggregatedAnalytics + CachedLeaderboard + nightly jobs` | `AnalyticsSnapshot`, `AggregatedAnalyticsTable` (per-subject mastery, per-evaluator efficiency), `CachedLeaderboardEntry`. Four `BackgroundService` aggregators run nightly (`InstituteAnalyticsAggregator`, `StudentPerformanceAggregator`, `EvaluatorEfficiencyAggregator`, `LeaderboardRecomputer`). All Chunk 14 dashboards now read from snapshots; raw EF queries reserved for the aggregators. |
+| 29 | `Feature: GlobalAnalytics + InstituteAnalytics + TeacherReports + StudentAnalytics + Leaderboard` | Heatmap (chapter × competency, CSS-grid component fed from JSON), radar (question-type distribution per institute), trend lines (monthly, pass/fail, evaluator efficiency), batch-scoped leaderboard that never reveals other students' raw scores. |
+
+#### Phase I — Special modes
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 30 | `Feature: multilingual content (Language, QuestionTranslation, PaperLanguageSet)` | Institute-scoped `Language`, `QuestionTranslation` (1:n from `Question`), `PaperLanguageSet`, `StudentProfile.PreferredLanguage`. Authoring screen gains a Translations tab; exam runtime auto-picks the student's preferred language with fallback. |
+| 31 | `Feature: coding exam (Monaco editor, sandboxed runner, hidden + sample test cases)` | Monaco wired into `_LayoutExam`. `ICodeExecutionService` (Application abstraction) with `RunSampleAsync` / `RunFullAsync`. `ProcessIsolatedCodeExecutor` (Linux: `timeout` + `setrlimit`-style; Windows: JobObject). `Question.CodeStub`, `Question.Languages[]`, `QuestionTestCase.IsHidden`, `CodingSubmission`, `CodingTestCaseResult`. `CodingEvaluation` extends `Evaluation` for evaluator overrides (gated by `CanReviewCodingQuestions`). `IPlagiarismScorer` interface (logging stub now). |
+| 32 | `Feature: advanced question types (case study + file upload + KaTeX equations)` | Case study (parent + sub-questions in one card), file-upload answers (uses Chunk 9), KaTeX renders `<span data-math="...">` in question body and rubric. |
+
+#### Phase J — Governance & hardening
+
+| # | PR title | What it adds |
+| --- | --- | --- |
+| 33 | `Feature: Super Admin governance (audit, system health, broadcasts)` | Audit log viewer (paginated, filterable, CSV export, read-only). System health (CPU / memory / req rate / DB ping / `IHostedService` registry). Broadcasts: scheduled HTML messages (sanitised) shown as a top banner across role shells during the active window. |
+| 34 | `Hardening: CSP, rate limiting, exports, branding, QR/watermark, GitHub Actions CI` | CSP middleware (TinyMCE / Monaco / Chart.js / KaTeX CDNs allow-listed with SRI). Rate limiting on auth + exports + heartbeat. Output caching on landing + login + public broadcasts. `HSTS` / `Referrer-Policy` / `X-Content-Type-Options` / `X-Frame-Options`. Export endpoints (CSV / XLSX). Institute branding (logo + primary colour) flows into `_RoleLayout` per-tenant theme. QR verification on printed papers + result PDFs. Watermarking on prints + exports. GitHub Actions CI: `dotnet restore + build`. |
+
+### 8. Definition of Done (per chunk PR)
+
+A chunk is "done" only when every box below is ticked. Each PR description
+self-attests by repeating the checklist with checkmarks.
+
+- [ ] Routes registered, reachable from the sidebar / nav for the
+      corresponding role(s).
+- [ ] `[Authorize(Roles = "...")]` on every controller; `[RequiresPermission("...")]`
+      on every action that needs an operational capability; ownership /
+      tenancy enforced (cross-tenant ⇒ 404).
+- [ ] All workflow transitions go through `IWorkflowService` — no `switch`
+      over status enums in controllers.
+- [ ] Views render against dedicated ViewModels — no EF entities leaked.
 - [ ] All forms include `@Html.AntiForgeryToken()`; all POST actions have
       `[ValidateAntiForgeryToken]`. POST endpoints reject `GET`.
-- [ ] Server-side validation via DataAnnotations on the ViewModel; client-side
-      validation enabled (`jquery-validation-unobtrusive`).
-- [ ] User-supplied HTML (TinyMCE bodies, feedback) is sanitized on the
-      server before persistence.
+- [ ] Server-side validation via DataAnnotations; client validation via
+      `jquery-validation-unobtrusive`. Every business rule is re-checked
+      server-side regardless of what JS already validated.
+- [ ] User-supplied HTML (TinyMCE bodies, feedback, rubric criteria, paper
+      instructions) is sanitised on the server before persistence.
+- [ ] All file uploads go through `ILocalFileStorageService`; downloads via
+      authorised token endpoint with audit row.
 - [ ] Bootstrap 5 responsive: layout verified at sm / md / lg / xl
       breakpoints; mobile bottom nav works for role pages; tables wrap or
-      scroll, never overflow.
-- [ ] Empty state, loading state, and error state are visibly designed (not
-      blank). 404 / 403 routes through shared error view.
+      scroll, never overflow horizontally.
+- [ ] Empty / loading / error states are visibly designed (never a blank
+      page). 404 / 403 / 500 route through shared error views.
 - [ ] Accessibility: form fields have `<label>`, interactive icons have
-      `aria-label`, modal/dropdown traps focus, color contrast ≥ AA.
-- [ ] No secrets, connection strings, or API keys committed; configuration is
-      read from `IConfiguration` / user-secrets.
-- [ ] Audit log entry written for every state-changing action (login,
-      paper publish, evaluation submit, institute suspend, etc.).
-- [ ] Existing build passes (`dotnet build`) and any tests added for the
-      chunk pass (`dotnet test`).
-
-### 8. Open questions
-
-These are intentionally left for the relevant chunks; the safest defaults
-above are picked for now so migration is unblocked.
-
-1. Should `Evaluator` be a distinct Identity role with its own area, or is it
-   a permission flag on the `Teacher` role? Defaulting to: same area
-   (`/Teacher/Evaluation`), separate role name for `[Authorize]`.
-2. Should marketing (`/`) and login (`/Account/Login`) be the same page
-   (matching the React `LandingPage` 50/50 split) or separate URLs?
-   Defaulting to: separate pages, same anonymous layout, "Sign in" CTA on
-   `/` links to `/Account/Login`.
-3. Are tenancy boundaries strict (an InstituteAdmin can never see another
-   institute's data, ever) or are there shared "platform-level" reads?
-   Defaulting to: strict tenancy enforced by an `IInstituteScope` filter on
-   every query.
+      `aria-label`, modals / dropdowns trap focus, colour contrast ≥ AA,
+      keyboard navigation covers every interactive control.
+- [ ] No secrets / connection strings / API keys committed; configuration
+      from `IConfiguration` + user-secrets only.
+- [ ] Audit row written for every state-changing action via `IAuditWriter`.
+- [ ] Domain event fired (where applicable) so notifications / activity feed
+      / aggregators downstream pick the change up.
+- [ ] Immutability respected: approved questions, frozen blueprint versions,
+      locked paper versions, published results never mutated; edits create
+      new versions.
+- [ ] `dotnet build` passes with **0 warnings, 0 errors**. Any tests added
+      for the chunk pass under `dotnet test`.
+- [ ] React reference cited: each PR description names the source `.tsx`
+      file(s) it mirrors.
