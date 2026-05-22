@@ -42,7 +42,62 @@ npm run build    # vite build
   - `Aimbys.Application` — application services / use-cases (references `Aimbys.Domain`).
   - `Aimbys.Domain` — domain entities and value objects (no dependencies).
   - `Aimbys.Infrastructure` — persistence / external integrations (references `Aimbys.Domain` and `Aimbys.Application`).
-  
+
+  ### EF Core / SQL Server setup
+
+  The MVP schema (Project, Document, DocumentVersion, Template, TemplateVersion,
+  Job, ExportArtifact, AuditLog) is mapped via `Aimbys.Infrastructure`'s
+  `AppDbContext`. Migrations live under `Aimbys.Infrastructure/Migrations/`.
+
+  **One-time tooling** (pinned in `dotnet-tools.json`):
+
+  ```sh
+  dotnet tool restore
+  ```
+
+  **Configure the connection string.** `appsettings.json` ships with an empty
+  `ConnectionStrings:Default` so nothing leaks into source control. Pick one:
+
+  - User-secrets (recommended for local dev):
+
+    ```sh
+    dotnet user-secrets --project Aimbys.Web set \
+      ConnectionStrings:Default \
+      "Server=localhost,1433;Database=Aimbys.Dev;User Id=sa;Password=<your-pwd>;Encrypt=True;TrustServerCertificate=True;"
+    ```
+
+  - Environment variable (CI / containers):
+
+    ```sh
+    export ConnectionStrings__Default="Server=…"
+    ```
+
+  - SQL Server LocalDB on Windows: `appsettings.Development.json` already
+    points at `(localdb)\\mssqllocaldb` so `dotnet run` just works after
+    `sqllocaldb create / start mssqllocaldb`.
+
+  **Apply the schema:**
+
+  ```sh
+  dotnet ef database update --project Aimbys.Infrastructure --startup-project Aimbys.Web
+  ```
+
+  **Inspect the generated SQL without applying it:**
+
+  ```sh
+  dotnet ef migrations script --project Aimbys.Infrastructure --startup-project Aimbys.Web --idempotent
+  ```
+
+  **Add a new migration in the future:**
+
+  ```sh
+  dotnet ef migrations add <Name> --project Aimbys.Infrastructure --startup-project Aimbys.Web --output-dir Migrations
+  ```
+
+  The Web host starts even when no connection string is configured — it logs a
+  warning and only fails on the first DB call. This keeps `dotnet run` useful
+  for UI iteration before SQL Server is available.
+
 There are no tests and no CI in this repo today.
 
 ---
