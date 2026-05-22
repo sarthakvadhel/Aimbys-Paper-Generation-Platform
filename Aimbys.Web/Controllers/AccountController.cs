@@ -101,8 +101,11 @@ public class AccountController : Controller
             return View(model);
         }
 
-        // Every freshly registered user lands in the User role by default.
-        await _userManager.AddToRoleAsync(user, Roles.User);
+        // New self-registered users land with no role by default. In the
+        // PARAKH model, an Institute Admin invites them and assigns the
+        // appropriate role + permission flags (Chunk 17). Until then they
+        // can sign in but every role-area URL (/SuperAdmin, /Institute,
+        // /Teacher, /Student) will deny them.
 
         await _signInManager.SignInAsync(user, isPersistent: false);
         _logger.LogInformation("New user {Email} registered.", model.Email);

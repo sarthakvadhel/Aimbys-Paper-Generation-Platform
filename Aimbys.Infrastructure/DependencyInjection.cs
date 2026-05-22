@@ -1,3 +1,5 @@
+using Aimbys.Application.Authorization;
+using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -76,6 +78,10 @@ public static class DependencyInjection
         // Bind admin-seed configuration so the seeder can opt in cleanly.
         services.Configure<DefaultAdminOptions>(
             configuration.GetSection(DefaultAdminOptions.SectionName));
+
+        // Permission guard: the only sanctioned route for checking teacher
+        // permission flags. Scoped to align with AppDbContext + UserManager.
+        services.AddScoped<IPermissionGuard, PermissionGuard>();
 
         return services;
     }

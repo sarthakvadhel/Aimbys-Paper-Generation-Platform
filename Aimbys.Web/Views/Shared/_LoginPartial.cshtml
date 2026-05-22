@@ -5,9 +5,9 @@
 
 @if (SignInManager.IsSignedIn(User))
 {
-    var isAdmin = User.IsInRole(Roles.Admin);
+    var isSuperAdmin = User.IsInRole(Roles.SuperAdmin);
     <ul class="navbar-nav align-items-stretch align-items-lg-center">
-        @if (isAdmin)
+        @if (isSuperAdmin)
         {
             <li class="nav-item">
                 <a class="nav-link"
