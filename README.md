@@ -98,6 +98,33 @@ npm run build    # vite build
   warning and only fails on the first DB call. This keeps `dotnet run` useful
   for UI iteration before SQL Server is available.
 
+  ### Identity / first admin user
+
+  ASP.NET Core Identity is wired to `AppDbContext`. Two roles are seeded at
+  startup (idempotent): **Admin** and **User**. New users registered via
+  `/Account/Register` are placed in the `User` role automatically.
+
+  **Promote the first admin via configuration**, *before* the host starts:
+
+  ```sh
+  dotnet user-secrets --project Aimbys.Web set Identity:DefaultAdmin:Email "you@example.com"
+  dotnet user-secrets --project Aimbys.Web set Identity:DefaultAdmin:Password "ChangeMe!1"
+  ```
+
+  On the next `dotnet run`, the seeder creates the user (if missing) and
+  ensures it is in the `Admin` role. The seed is safe to re-run; it
+  skips entirely when either key is unset.
+
+  Manual smoke flow once a SQL Server is reachable:
+
+  1. `dotnet ef database update --project Aimbys.Infrastructure --startup-project Aimbys.Web`
+  2. `dotnet run --project Aimbys.Web`
+  3. Visit `/Account/Register`, create a regular user — it lands in `User`.
+  4. As that user, visit `/Admin` — you should be redirected to
+     `/Account/AccessDenied` (HTTP 403).
+  5. Sign out, sign in as the seeded default admin, visit `/Admin` — the
+     placeholder admin page renders.
+
 There are no tests and no CI in this repo today.
 
 ---
