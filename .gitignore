@@ -1,0 +1,23 @@
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# .NET tool / NuGet
+*.nupkg
+.nuget/
+project.lock.json
+
+# Node / Vite (existing React reference)
+node_modules/
+/dist/
+.vite/
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
