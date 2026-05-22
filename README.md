@@ -45,9 +45,14 @@ npm run build    # vite build
 
   ### EF Core / SQL Server setup
 
-  The MVP schema (Project, Document, DocumentVersion, Template, TemplateVersion,
-  Job, ExportArtifact, AuditLog) is mapped via `Aimbys.Infrastructure`'s
-  `AppDbContext`. Migrations live under `Aimbys.Infrastructure/Migrations/`.
+  The schema is the **PARAKH-aligned organisational foundation**: `Institute`
+  (tenancy root), `Department`, `AcademicYear`, `Subject`, `ClassBatch`,
+  `TeacherProfile`, `StudentProfile`, plus `AuditLog` and the ASP.NET Identity
+  tables. Workflow entities &mdash; Blueprint, AssessmentDesign, Question,
+  Paper, Exam, Evaluation, Moderation, Analytics &mdash; arrive in subsequent
+  chunks alongside their controllers / views, so the data model and the
+  workflows ship as a unit. Mapping lives in `Aimbys.Infrastructure`'s
+  `AppDbContext`; migrations live under `Aimbys.Infrastructure/Migrations/`.
 
   **One-time tooling** (pinned in `dotnet-tools.json`):
 
