@@ -1,6 +1,8 @@
 using Aimbys.Infrastructure;
 using Aimbys.Infrastructure.Identity;
+using Aimbys.Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,6 +73,15 @@ app.MapControllerRoute(
 // a DB outage; see IdentitySeeder for details.
 using (var scope = app.Services.CreateScope())
 {
+    // File-storage area folders are created at startup so the first upload
+    // never has to race directory creation. Idempotent.
+    var storageOptions = scope.ServiceProvider
+        .GetRequiredService<IOptions<LocalFileStorageOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(storageOptions.RootPath))
+    {
+        FileFolders.EnsureCreated(storageOptions.RootPath);
+    }
+
     await IdentitySeeder.SeedAsync(scope.ServiceProvider);
 }
 
