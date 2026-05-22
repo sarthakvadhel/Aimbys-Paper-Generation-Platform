@@ -38,6 +38,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ClassBatch> ClassBatches => Set<ClassBatch>();
     public DbSet<TeacherProfile> TeacherProfiles => Set<TeacherProfile>();
     public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
+    public DbSet<FileAsset> FileAssets => Set<FileAsset>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -281,6 +282,45 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
              .IsUnique()
              .HasFilter("[AdmissionNumber] IS NOT NULL")
              .HasDatabaseName("UX_StudentProfiles_InstituteId_AdmissionNumber");
+        });
+
+        // ---------- FileAsset ----------------------------------------------
+        modelBuilder.Entity<FileAsset>(b =>
+        {
+            b.ToTable("FileAssets");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Token).IsRequired();
+            b.Property(x => x.Area).HasConversion<int>().IsRequired();
+            b.Property(x => x.OwnerKey).IsRequired().HasMaxLength(200);
+            b.Property(x => x.OriginalFileName).IsRequired().HasMaxLength(255);
+            b.Property(x => x.StoredFileName).IsRequired().HasMaxLength(120);
+            b.Property(x => x.ContentType).IsRequired().HasMaxLength(200);
+            b.Property(x => x.SizeBytes).IsRequired();
+            b.Property(x => x.Sha256).IsRequired().HasMaxLength(64);
+            b.Property(x => x.UploadedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            // FK to AspNetUsers via UploadedByUserId. Restrict so deleting
+            // an Identity user can't silently orphan upload history.
+            b.HasOne<IdentityUser>()
+             .WithMany()
+             .HasForeignKey(x => x.UploadedByUserId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            // Token must be unique among non-deleted rows; soft-deleted
+            // rows are excluded so a token can be re-used after deletion.
+            b.HasIndex(x => x.Token)
+             .IsUnique()
+             .HasFilter("[IsDeleted] = 0")
+             .HasDatabaseName("UX_FileAssets_Token");
+
+            b.HasIndex(x => new { x.Area, x.OwnerKey })
+             .HasDatabaseName("IX_FileAssets_Area_OwnerKey");
+            b.HasIndex(x => x.UploadedByUserId)
+             .HasDatabaseName("IX_FileAssets_UploadedByUserId");
+            b.HasIndex(x => x.InstituteId)
+             .HasDatabaseName("IX_FileAssets_InstituteId");
         });
 
         // ---------- AuditLog ------------------------------------------------

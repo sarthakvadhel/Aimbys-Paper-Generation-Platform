@@ -1,11 +1,14 @@
 using Aimbys.Application.Authorization;
+using Aimbys.Application.Storage;
 using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Persistence;
+using Aimbys.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Aimbys.Infrastructure;
 
@@ -82,6 +85,30 @@ public static class DependencyInjection
         // Permission guard: the only sanctioned route for checking teacher
         // permission flags. Scoped to align with AppDbContext + UserManager.
         services.AddScoped<IPermissionGuard, PermissionGuard>();
+
+        // Tenancy resolver. Scoped because it queries AppDbContext.
+        services.AddScoped<IInstituteScope, InstituteScope>();
+
+        // Local file storage. Bind options from `FileStorage` section and
+        // default RootPath to `<ContentRoot>/uploads` when unset so a fresh
+        // checkout works without configuration.
+        services
+            .AddOptions<LocalFileStorageOptions>()
+            .Bind(configuration.GetSection(LocalFileStorageOptions.SectionName))
+            .PostConfigure<IHostEnvironment>((opts, env) =>
+            {
+                if (string.IsNullOrWhiteSpace(opts.RootPath))
+                {
+                    opts.RootPath = Path.Combine(env.ContentRootPath, "uploads");
+                }
+            });
+
+        // The single concrete is registered once and exposed under both the
+        // generic and local-specific interfaces so consumers get the same
+        // scoped instance regardless of which they injected.
+        services.AddScoped<LocalFileStorageService>();
+        services.AddScoped<ILocalFileStorageService>(sp => sp.GetRequiredService<LocalFileStorageService>());
+        services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<LocalFileStorageService>());
 
         return services;
     }
