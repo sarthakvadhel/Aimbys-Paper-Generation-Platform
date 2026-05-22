@@ -38,6 +38,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<ClassBatch> ClassBatches => Set<ClassBatch>();
     public DbSet<TeacherProfile> TeacherProfiles => Set<TeacherProfile>();
     public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
+    public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -302,6 +303,25 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasIndex(x => new { x.EntityType, x.EntityId })
              .HasDatabaseName("IX_AuditLogs_EntityType_EntityId");
             b.HasIndex(x => x.ActorUserId).HasDatabaseName("IX_AuditLogs_ActorUserId");
+        });
+
+        // ---------- Notification --------------------------------------------
+        modelBuilder.Entity<Notification>(b =>
+        {
+            b.ToTable("Notifications");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.RecipientUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Body).HasMaxLength(2000);
+            b.Property(x => x.Severity).HasConversion<int>().IsRequired();
+            b.Property(x => x.RouteUrl).HasMaxLength(500);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => new { x.RecipientUserId, x.IsRead, x.CreatedAtUtc })
+             .HasDatabaseName("IX_Notifications_RecipientUserId_IsRead_CreatedAtUtc");
+            b.HasIndex(x => x.InstituteId)
+             .HasDatabaseName("IX_Notifications_InstituteId");
         });
     }
 }

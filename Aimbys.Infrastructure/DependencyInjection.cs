@@ -1,11 +1,17 @@
 using Aimbys.Application.Authorization;
+using Aimbys.Application.Notifications;
+using Aimbys.Application.Notifications.Projections;
+using Aimbys.Domain.Events;
 using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Identity;
+using Aimbys.Infrastructure.Notifications;
 using Aimbys.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Notifications = Aimbys.Infrastructure.Notifications;
+using Projections = Aimbys.Application.Notifications.Projections;
 
 namespace Aimbys.Infrastructure;
 
@@ -82,6 +88,22 @@ public static class DependencyInjection
         // Permission guard: the only sanctioned route for checking teacher
         // permission flags. Scoped to align with AppDbContext + UserManager.
         services.AddScoped<IPermissionGuard, PermissionGuard>();
+
+        // Domain events + notifications (Chunk 10).
+        services.AddScoped<Notifications.DomainEventCollector>();
+        services.AddScoped<IDomainEventDispatcher, Notifications.DomainEventDispatcher>();
+        services.AddScoped<INotificationService, Notifications.NotificationService>();
+        services.AddSingleton<INotificationChannel, Notifications.LoggingNotificationChannel>();
+
+        // Register all 8 notification projections.
+        services.AddScoped<INotificationProjection<PaperSubmittedEvent>, Projections.PaperSubmittedProjection>();
+        services.AddScoped<INotificationProjection<PaperApprovedEvent>, Projections.PaperApprovedProjection>();
+        services.AddScoped<INotificationProjection<EvaluationAssignedEvent>, Projections.EvaluationAssignedProjection>();
+        services.AddScoped<INotificationProjection<ModerationReturnedEvent>, Projections.ModerationReturnedProjection>();
+        services.AddScoped<INotificationProjection<ExamScheduledEvent>, Projections.ExamScheduledProjection>();
+        services.AddScoped<INotificationProjection<ResultPublishedEvent>, Projections.ResultPublishedProjection>();
+        services.AddScoped<INotificationProjection<InstituteApprovedEvent>, Projections.InstituteApprovedProjection>();
+        services.AddScoped<INotificationProjection<UserSuspendedEvent>, Projections.UserSuspendedProjection>();
 
         return services;
     }
