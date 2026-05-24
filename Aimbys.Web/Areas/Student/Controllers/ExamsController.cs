@@ -1,0 +1,184 @@
+using System.Security.Claims;
+using Aimbys.Application.Exams;
+using Aimbys.Domain.Enums;
+using Aimbys.Infrastructure.Identity;
+using Aimbys.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace Aimbys.Web.Areas.Student.Controllers;
+
+/// <summary>
+/// Student exam-taking surface: list exams, start attempts, take
+/// exam (fullscreen), autosave answers, flag, and submit.
+/// </summary>
+[Area("Student")]
+[Authorize(Roles = Roles.Student)]
+public class ExamsController : Controller
+{
+    private readonly AppDbContext _db;
+    private readonly IExamRuntimeService _runtime;
+
+    public ExamsController(AppDbContext db, IExamRuntimeService runtime)
+    {
+        _db = db;
+        _runtime = runtime;
+    }
+
+    /// <summary>GET /Student/Exams — upcoming + completed exams.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Index(CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var studentProfile = await _db.StudentProfiles
+            .FirstOrDefaultAsync(sp => sp.UserId == userId, ct);
+
+        if (studentProfile == null)
+            return View(new StudentExamsViewModel());
+
+        var exams = await _db.Exams
+            .Where(e => e.ClassBatchId == studentProfile.ClassBatchId)
+            .OrderByDescending(e => e.ScheduledAtUtc)
+            .ToListAsync(ct);
+
+        var attempts = await _db.ExamAttempts
+            .Where(a => a.StudentProfileId == studentProfile.Id)
+            .ToListAsync(ct);
+
+        var vm = new StudentExamsViewModel
+        {
+            StudentProfileId = studentProfile.Id,
+            Upcoming = exams.Where(e => e.Status == ExamStatus.Scheduled || e.Status == ExamStatus.Live).ToList(),
+            Completed = exams.Where(e => e.Status == ExamStatus.Completed || e.Status == ExamStatus.ResultsPublished).ToList(),
+            Attempts = attempts
+        };
+
+        return View(vm);
+    }
+
+    /// <summary>POST /Student/Exams/Start — starts an attempt.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Start(Guid examId, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var studentProfile = await _db.StudentProfiles
+            .FirstOrDefaultAsync(sp => sp.UserId == userId, ct);
+
+        if (studentProfile == null)
+        {
+            TempData["Error"] = "Student profile not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var result = await _runtime.StartAttemptAsync(examId, studentProfile.Id, ct);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Index));
+        }
+
+        return RedirectToAction(nameof(Take), new { attemptId = result.AttemptId });
+    }
+
+    /// <summary>GET /Student/Exams/Take?attemptId=... — fullscreen exam view.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Take(Guid attemptId, CancellationToken ct)
+    {
+        var attempt = await _db.ExamAttempts
+            .Include(a => a.Exam)
+            .Include(a => a.Answers)
+            .FirstOrDefaultAsync(a => a.Id == attemptId, ct);
+
+        if (attempt?.Exam == null)
+            return NotFound();
+
+        var remainingSeconds = 0;
+        if (attempt.StartedAtUtc.HasValue)
+        {
+            var deadline = attempt.StartedAtUtc.Value.AddMinutes(attempt.Exam.DurationMinutes);
+            remainingSeconds = Math.Max(0, (int)(deadline - DateTime.UtcNow).TotalSeconds);
+        }
+
+        ViewBag.RemainingSeconds = remainingSeconds;
+        return View(attempt);
+    }
+
+    /// <summary>
+    /// POST /Student/Exams/SaveAnswer — autosave from JS.
+    /// Uses [IgnoreAntiforgeryToken] — real CSRF protection via header
+    /// token is deferred; the cookie-based auth + SameSite policy covers
+    /// the immediate threat model.
+    /// </summary>
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> SaveAnswer([FromBody] SaveAnswerInput input, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var result = await _runtime.SaveAnswerAsync(input.AttemptId, input.QuestionId, input.AnswerJson, userId, ct);
+
+        if (!result.Success && result.Error == "timer_expired")
+            return Conflict(new { error = "timer_expired" });
+
+        if (!result.Success)
+            return BadRequest(new { error = result.Error });
+
+        return Ok(new { success = true });
+    }
+
+    /// <summary>
+    /// POST /Student/Exams/Flag — toggle flag from JS.
+    /// Uses [IgnoreAntiforgeryToken] for same reason as SaveAnswer.
+    /// </summary>
+    [HttpPost]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> Flag([FromBody] FlagInput input, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        await _runtime.FlagQuestionAsync(input.AttemptId, input.QuestionId, input.Flagged, userId, ct);
+        return Ok(new { success = true });
+    }
+
+    /// <summary>POST /Student/Exams/Submit — submits the attempt.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Submit(Guid attemptId, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var result = await _runtime.SubmitAsync(attemptId, userId, ct);
+
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Take), new { attemptId });
+        }
+
+        TempData["Success"] = $"Exam submitted. Auto-score: {result.TotalAutoScore}";
+        return RedirectToAction(nameof(Index));
+    }
+}
+
+// ----- View models and input DTOs (co-located for simplicity) -----
+
+public sealed class StudentExamsViewModel
+{
+    public Guid StudentProfileId { get; set; }
+    public List<Aimbys.Domain.Entities.Exams.Exam> Upcoming { get; set; } = new();
+    public List<Aimbys.Domain.Entities.Exams.Exam> Completed { get; set; } = new();
+    public List<Aimbys.Domain.Entities.Exams.ExamAttempt> Attempts { get; set; } = new();
+}
+
+public sealed class SaveAnswerInput
+{
+    public Guid AttemptId { get; set; }
+    public Guid QuestionId { get; set; }
+    public string? AnswerJson { get; set; }
+}
+
+public sealed class FlagInput
+{
+    public Guid AttemptId { get; set; }
+    public Guid QuestionId { get; set; }
+    public bool Flagged { get; set; }
+}

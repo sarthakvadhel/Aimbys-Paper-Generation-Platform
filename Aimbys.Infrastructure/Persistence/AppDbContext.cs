@@ -1,11 +1,14 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
+using Aimbys.Domain.Entities.Blueprints;
 using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Exams;
 using Aimbys.Domain.Entities.Notifications;
-using Aimbys.Domain.Entities.Results;
+using Aimbys.Domain.Entities.Questions;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
+using Aimbys.Domain.Enums;
 using Aimbys.Domain.SoftDelete;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -75,6 +78,13 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Major> Majors => Set<Major>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
 
+    // ----- Question approval workflow (Chunk 21) ---------------------------
+    public DbSet<Question> Questions => Set<Question>();
+    public DbSet<QuestionVersion> QuestionVersions => Set<QuestionVersion>();
+    public DbSet<QuestionReview> QuestionReviews => Set<QuestionReview>();
+    public DbSet<QuestionApproval> QuestionApprovals => Set<QuestionApproval>();
+    public DbSet<QuestionModeration> QuestionModerations => Set<QuestionModeration>();
+
     // ----- Notification hardening + audit visibility (Chunk 13) ----------
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
     public DbSet<NotificationTemplateTranslation> NotificationTemplateTranslations
@@ -84,11 +94,14 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
 
-    // ----- Result publication (Chunk 29) ------------------------------------
-    public DbSet<Result> Results => Set<Result>();
-    public DbSet<FinalPublishedScore> FinalPublishedScores => Set<FinalPublishedScore>();
-    public DbSet<ResultArchive> ResultArchives => Set<ResultArchive>();
-    public DbSet<ResultAppeal> ResultAppeals => Set<ResultAppeal>();
+    // ----- Question authoring + versioning (Chunk 20) --------------------
+    public DbSet<Question> Questions => Set<Question>();
+    public DbSet<QuestionVersion> QuestionVersions => Set<QuestionVersion>();
+    public DbSet<QuestionOption> QuestionOptions => Set<QuestionOption>();
+    public DbSet<QuestionRubricCriterion> QuestionRubricCriteria => Set<QuestionRubricCriterion>();
+    public DbSet<QuestionTestCase> QuestionTestCases => Set<QuestionTestCase>();
+    public DbSet<QuestionAsset> QuestionAssets => Set<QuestionAsset>();
+    public DbSet<QuestionExposureLog> QuestionExposureLogs => Set<QuestionExposureLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -879,49 +892,171 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
         });
 
-        // ===== Chunk 29 — result publication + appeals ========================
+        // ===== Chunk 21 — question approval workflow ============================
+        // ===== Chunk 20 — question authoring + versioning ====================
 
-        // ---------- Result --------------------------------------------------
-        modelBuilder.Entity<Result>(b =>
+        // ---------- Question ------------------------------------------------
+        modelBuilder.Entity<Question>(b =>
         {
-            b.ToTable("Results");
+            b.ToTable("Questions");
             b.HasKey(x => x.Id);
-            b.Property(x => x.TotalScore).HasPrecision(7, 2);
-            b.Property(x => x.MaxScore).HasPrecision(7, 2);
-            b.Property(x => x.Grade).HasMaxLength(10);
-            b.Property(x => x.PublishedByUserId).HasMaxLength(IdentityUserIdLength);
-            b.HasIndex(x => x.ExamAttemptId).IsUnique().HasDatabaseName("UX_Results_ExamAttemptId");
-        });
-
-        // ---------- FinalPublishedScore -------------------------------------
-        modelBuilder.Entity<FinalPublishedScore>(b =>
-        {
-            b.ToTable("FinalPublishedScores");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.PointsAwarded).HasPrecision(5, 2);
-            b.Property(x => x.MaxPoints).HasPrecision(5, 2);
-            b.Property(x => x.Source).HasConversion<int>().IsRequired();
-            b.HasIndex(x => new { x.ExamAttemptAnswerId, x.Version }).IsUnique().HasDatabaseName("UX_FinalPublishedScores_ExamAttemptAnswerId_Version");
-        });
-
-        // ---------- ResultArchive -------------------------------------------
-        modelBuilder.Entity<ResultArchive>(b =>
-        {
-            b.ToTable("ResultArchives");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.ArchiveType).HasConversion<int>().IsRequired();
-            b.HasIndex(x => new { x.ExamId, x.ArchiveType }).HasDatabaseName("IX_ResultArchives_ExamId_ArchiveType");
-        });
-
-        // ---------- ResultAppeal --------------------------------------------
-        modelBuilder.Entity<ResultAppeal>(b =>
-        {
-            b.ToTable("ResultAppeals");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.Reason).IsRequired().HasMaxLength(2000);
+            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
             b.Property(x => x.Status).HasConversion<int>().IsRequired();
-            b.HasIndex(x => new { x.ExamAttemptAnswerId, x.Status }).HasDatabaseName("IX_ResultAppeals_ExamAttemptAnswerId_Status");
-            b.HasIndex(x => x.StudentProfileId).HasDatabaseName("IX_ResultAppeals_StudentProfileId");
+
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.Type).HasConversion<int>().IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
+
+            b.HasMany(x => x.Versions)
+             .WithOne(v => v.Question)
+             .HasForeignKey(v => v.QuestionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.InstituteId, x.SubjectId, x.Status })
+             .HasDatabaseName("IX_Questions_InstituteId_SubjectId_Status");
+            b.HasIndex(x => x.AuthorUserId)
+             .HasDatabaseName("IX_Questions_AuthorUserId");
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_Questions_InstituteId");
+            b.HasIndex(x => x.SubjectId).HasDatabaseName("IX_Questions_SubjectId");
+            b.HasIndex(x => x.AuthorTeacherProfileId).HasDatabaseName("IX_Questions_AuthorTeacherProfileId");
+            b.HasIndex(x => new { x.InstituteId, x.Status }).HasDatabaseName("IX_Questions_InstituteId_Status");
+        });
+
+        // ---------- QuestionVersion -----------------------------------------
+        modelBuilder.Entity<QuestionVersion>(b =>
+        {
+            b.ToTable("QuestionVersions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.Marks).IsRequired();
+            b.Property(x => x.DifficultyTag).HasMaxLength(50);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => new { x.QuestionId, x.VersionNumber })
+             .IsUnique()
+             .HasDatabaseName("UX_QuestionVersions_QuestionId_VersionNumber");
+        });
+
+        // ---------- QuestionReview ------------------------------------------
+        modelBuilder.Entity<QuestionReview>(b =>
+        {
+            b.ToTable("QuestionReviews");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Verdict).HasConversion<int>().IsRequired();
+            b.Property(x => x.Comment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.ReviewerTeacherProfileId, x.Verdict }).HasDatabaseName("IX_QuestionReviews_ReviewerTeacherProfileId_Verdict");
+            b.HasIndex(x => x.QuestionId).HasDatabaseName("IX_QuestionReviews_QuestionId");
+        });
+
+        // ---------- QuestionApproval ----------------------------------------
+        modelBuilder.Entity<QuestionApproval>(b =>
+        {
+            b.ToTable("QuestionApprovals");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ApprovedByUserId).HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.RejectionComment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.QuestionId, x.WorkflowInstanceId }).IsUnique().HasDatabaseName("UX_QuestionApprovals_QuestionId_WorkflowInstanceId");
+        });
+
+        // ---------- QuestionModeration --------------------------------------
+        modelBuilder.Entity<QuestionModeration>(b =>
+        {
+            b.ToTable("QuestionModerations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.FinalVerdict).HasConversion<int>().IsRequired();
+            b.Property(x => x.Comment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.ModeratorTeacherProfileId, x.CompletedAtUtc }).HasDatabaseName("IX_QuestionModerations_ModeratorTeacherProfileId_CompletedAtUtc");
+
+            b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.Difficulty).HasConversion<int>().IsRequired();
+            b.Property(x => x.BloomLevel).HasConversion<int>().IsRequired();
+            b.Property(x => x.Marks).HasPrecision(8, 2).IsRequired();
+            b.Property(x => x.InstructionsHtml).HasColumnType("nvarchar(max)");
+            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(AppDbContext.IdentityUserIdLength);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasMany(x => x.Options)
+             .WithOne(o => o.Version)
+             .HasForeignKey(o => o.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.RubricCriteria)
+             .WithOne(r => r.Version)
+             .HasForeignKey(r => r.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.TestCases)
+             .WithOne(t => t.Version)
+             .HasForeignKey(t => t.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.QuestionId, x.VersionNumber })
+             .IsUnique()
+             .HasDatabaseName("UX_QuestionVersions_QuestionId_VersionNumber");
+            b.HasIndex(x => new { x.QuestionId, x.IsCurrentVersion })
+             .HasDatabaseName("IX_QuestionVersions_QuestionId_IsCurrentVersion");
+        });
+
+        // ---------- QuestionOption ------------------------------------------
+        modelBuilder.Entity<QuestionOption>(b =>
+        {
+            b.ToTable("QuestionOptions");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Label).IsRequired().HasMaxLength(10);
+            b.Property(x => x.Text).IsRequired().HasColumnType("nvarchar(max)");
+
+            b.HasIndex(x => x.VersionId).HasDatabaseName("IX_QuestionOptions_VersionId");
+        });
+
+        // ---------- QuestionRubricCriterion ----------------------------------
+        modelBuilder.Entity<QuestionRubricCriterion>(b =>
+        {
+            b.ToTable("QuestionRubricCriteria");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Criterion).IsRequired().HasMaxLength(500);
+            b.Property(x => x.MaxPoints).HasPrecision(8, 2).IsRequired();
+
+            b.HasIndex(x => x.VersionId).HasDatabaseName("IX_QuestionRubricCriteria_VersionId");
+        });
+
+        // ---------- QuestionTestCase ----------------------------------------
+        modelBuilder.Entity<QuestionTestCase>(b =>
+        {
+            b.ToTable("QuestionTestCases");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Input).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.ExpectedOutput).IsRequired().HasColumnType("nvarchar(max)");
+
+            b.HasIndex(x => x.VersionId).HasDatabaseName("IX_QuestionTestCases_VersionId");
+        });
+
+        // ---------- QuestionAsset -------------------------------------------
+        modelBuilder.Entity<QuestionAsset>(b =>
+        {
+            b.ToTable("QuestionAssets");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => x.QuestionId).HasDatabaseName("IX_QuestionAssets_QuestionId");
+            b.HasIndex(x => x.FileAssetId).HasDatabaseName("IX_QuestionAssets_FileAssetId");
+        });
+
+        // ---------- QuestionExposureLog -------------------------------------
+        modelBuilder.Entity<QuestionExposureLog>(b =>
+        {
+            b.ToTable("QuestionExposureLogs");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).ValueGeneratedOnAdd();
+
+            b.Property(x => x.ExposedAtUtc).IsRequired();
+
+            b.HasIndex(x => x.QuestionId).HasDatabaseName("IX_QuestionExposureLogs_QuestionId");
+            b.HasIndex(x => new { x.InstituteId, x.ExposedAtUtc }).HasDatabaseName("IX_QuestionExposureLogs_InstituteId_ExposedAtUtc");
         });
 
         // ===== Soft-delete global query filter convention ==================
@@ -932,6 +1067,52 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         // it here (after individual configs) means new soft-deletable
         // entities pick up the filter for free — no per-entity
         // boilerplate to remember.
+
+        // ===== Chunk 24 — paper generation ==================================
+
+        modelBuilder.Entity<Paper>(b =>
+        {
+            b.ToTable("Papers");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.HasMany(x => x.Versions).WithOne(v => v.Paper).HasForeignKey(v => v.PaperId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => new { x.InstituteId, x.SubjectId, x.Status }).HasDatabaseName("IX_Papers_InstituteId_SubjectId_Status");
+            b.HasIndex(x => new { x.AuthorTeacherProfileId, x.Status }).HasDatabaseName("IX_Papers_AuthorTeacherProfileId_Status");
+        });
+
+        modelBuilder.Entity<PaperVersion>(b =>
+        {
+            b.ToTable("PaperVersions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).IsRequired().HasMaxLength(500);
+            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(450);
+            b.HasMany(x => x.Sections).WithOne(s => s.Version).HasForeignKey(s => s.VersionId).OnDelete(DeleteBehavior.Cascade);
+            b.HasMany(x => x.Questions).WithOne(q => q.Version).HasForeignKey(q => q.VersionId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => new { x.PaperId, x.VersionNumber }).IsUnique().HasDatabaseName("UX_PaperVersions_PaperId_VersionNumber");
+        });
+
+        modelBuilder.Entity<PaperSection>(b =>
+        {
+            b.ToTable("PaperSections");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<PaperQuestion>(b =>
+        {
+            b.ToTable("PaperQuestions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.MarksOverride).HasPrecision(5, 2);
+        });
+
+        modelBuilder.Entity<PublishedSnapshot>(b =>
+        {
+            b.ToTable("PublishedSnapshots");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SnapshotJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.HasIndex(x => x.PaperVersionId).HasDatabaseName("IX_PublishedSnapshots_PaperVersionId");
+        });
+
         ApplySoftDeleteQueryFilters(modelBuilder);
     }
 
