@@ -1,33 +1,66 @@
 @{
-    ViewData["Title"] = "Student";
+    ViewData["Title"] = "Dashboard";
 }
 
 @*
-    Reached via /Student after a Student / Candidate signs in. Exam
-    access, results, and certificates ship in later chunks; this
-    stub exists today so the post-login redirector has a target.
+    Reached via /Student after a Student / Candidate signs in. Real
+    student tooling (exam attempts, results, certificates, analytics)
+    ships in Chunk 16+; this stub exists so the role shell and the
+    post-login redirector have a target today.
 *@
 
-<section class="container">
-    <nav aria-label="breadcrumb" class="small mb-2">
-        <ol class="breadcrumb mb-0">
-            <li class="breadcrumb-item">
-                <a class="text-decoration-none" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-            </li>
-            <li class="breadcrumb-item active" aria-current="page">Student</li>
-        </ol>
-    </nav>
-
-    <div class="bg-body rounded shadow-sm border p-4 p-md-5">
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-            <h1 class="h3 fw-bold mb-0">Student dashboard</h1>
-            <span class="badge text-bg-primary">Student</span>
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Student dashboard</h1>
+            <p class="text-secondary mb-0">
+                Upcoming exams, results, and personal analytics.
+            </p>
         </div>
-        <p class="text-secondary mb-0">
-            Welcome, <strong>@User.Identity?.Name</strong>. Exam access,
-            results, and certificates ship in upcoming chunks. This page
-            exists so the post-login redirect from Chunk&nbsp;14 has a
-            target.
-        </p>
+        <span class="badge text-bg-primary">Coming in Chunk 16</span>
     </div>
-</section>
+
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-3">
+            <article class="aimbys-feature-card h-100 p-4 bg-body">
+                <div class="text-secondary small text-uppercase fw-semibold">Upcoming exams</div>
+                <div class="display-6 fw-bolder mt-2">&mdash;</div>
+                <div class="text-secondary small">Lands when Exam aggregate ships</div>
+            </article>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <article class="aimbys-feature-card h-100 p-4 bg-body">
+                <div class="text-secondary small text-uppercase fw-semibold">Average score</div>
+                <div class="display-6 fw-bolder mt-2">&mdash;</div>
+                <div class="text-secondary small">Awaiting Result aggregate</div>
+            </article>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <article class="aimbys-feature-card h-100 p-4 bg-body">
+                <div class="text-secondary small text-uppercase fw-semibold">Recent results</div>
+                <div class="display-6 fw-bolder mt-2">&mdash;</div>
+                <div class="text-secondary small">Lands with Result publication</div>
+            </article>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <article class="aimbys-feature-card h-100 p-4 bg-body">
+                <div class="text-secondary small text-uppercase fw-semibold">Notifications</div>
+                <div class="display-6 fw-bolder mt-2">&mdash;</div>
+                <div class="text-secondary small">Inbox at /Notifications</div>
+            </article>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <article class="aimbys-feature-card p-4 bg-body">
+                <h2 class="h5 fw-semibold">Welcome, @User.Identity?.Name</h2>
+                <p class="text-secondary mb-0">
+                    The exam attempt surface, results detail page, and
+                    personal analytics land in Chunk&nbsp;16. The shell
+                    and role authorization are live today.
+                </p>
+            </article>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,83 @@
+@{
+    var area = ViewData["RoleArea"] as string ?? string.Empty;
+    var label = ViewData["RoleLabel"] as string ?? Aimbys.Web.Navigation.RoleNavCatalog.GetRoleLabel(area);
+    var accentHex = ViewData["RoleAccentHex"] as string ?? Aimbys.Web.Navigation.RoleNavCatalog.GetAccentHex(area);
+    var pageTitle = ViewData["Title"] is null ? label : ViewData["Title"];
+}
+
+@*
+    Shared layout for the four role-area shells (Chunk 15). Mirrors the
+    React `*Shell.tsx` components: branded sidebar pinned on lg+, topbar
+    with search / dark-mode / notifications / role badge, and a
+    bottom-tab bar plus offcanvas drawer below lg. The accent colour is
+    picked up from the RoleNavCatalog entry for the area.
+
+    Pages opt in to this layout via their area's _ViewStart.cshtml,
+    which sets `Layout = "/Views/Shared/_RoleLayout.cshtml"` plus the
+    three RoleArea / RoleLabel / RoleAccentHex ViewData keys this
+    layout consumes.
+*@
+
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light" data-aimbys-role="@area">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="@accentHex" />
+    <title>@pageTitle &mdash; AIMBYS</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Aimbys.Web.styles.css" asp-append-version="true" />
+    <style>
+        /* The accent CSS variable scopes per-shell so a single layout
+           handles all four roles without per-area stylesheets. */
+        html[data-aimbys-role="@area"] {
+            --aimbys-role-accent: @accentHex;
+        }
+    </style>
+</head>
+<body class="aimbys-role-shell">
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 btn btn-primary btn-sm"
+       href="#aimbys-main">Skip to main content</a>
+
+    <div class="aimbys-role-shell__layout">
+
+        @* Persistent sidebar on lg+. Hidden below lg by Bootstrap. *@
+        <div class="aimbys-role-shell__sidebar d-none d-lg-flex flex-column">
+            <partial name="_RoleSidebar" />
+        </div>
+
+        @* Offcanvas drawer holding the same sidebar markup for mobile. *@
+        <div class="offcanvas offcanvas-start aimbys-role-shell__drawer"
+             tabindex="-1"
+             id="aimbys-role-drawer"
+             aria-labelledby="aimbys-role-drawer-label">
+            <div class="offcanvas-header border-bottom">
+                <h2 class="offcanvas-title h6 mb-0" id="aimbys-role-drawer-label">
+                    @label
+                </h2>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body p-0 d-flex">
+                <partial name="_RoleSidebar" />
+            </div>
+        </div>
+
+        <div class="aimbys-role-shell__main d-flex flex-column flex-grow-1 min-vh-100">
+            <partial name="_RoleTopBar" />
+
+            <main id="aimbys-main" role="main" class="flex-grow-1">
+                @RenderBody()
+            </main>
+
+            <partial name="_MobileBottomNav" />
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/role-shell.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,18 +1,30 @@
 @using Aimbys.Infrastructure.Identity
+@using Aimbys.Web.Identity
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<IdentityUser> SignInManager
 @inject UserManager<IdentityUser> UserManager
 
+@*
+    Renders the right-hand chunk of the public-area navbar (used by
+    `_Layout.cshtml`, not the role shells). Authenticated users see a
+    quick link back to their role workspace plus a sign-out button;
+    anonymous users get sign-in / register.
+
+    The "go to my workspace" link is resolved through
+    `RoleHomeRedirector` so the link target stays in lock-step with
+    the post-login redirect from Chunk 14.
+*@
+
 @if (SignInManager.IsSignedIn(User))
 {
-    var isSuperAdmin = User.IsInRole(Roles.SuperAdmin);
+    var workspacePath = RoleHomeRedirector.GetHomePath(User);
+    var hasRole = RoleHomeRedirector.HasCanonicalRole(User);
     <ul class="navbar-nav align-items-stretch align-items-lg-center">
-        @if (isSuperAdmin)
+        @if (hasRole)
         {
             <li class="nav-item">
-                <a class="nav-link"
-                   asp-area="Admin" asp-controller="Home" asp-action="Index">
-                    Admin
+                <a class="nav-link" href="@workspacePath">
+                    My workspace
                 </a>
             </li>
         }
