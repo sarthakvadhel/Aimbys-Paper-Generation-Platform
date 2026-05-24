@@ -34,7 +34,7 @@ public interface IBulkOperationService
     /// </summary>
     Task<BulkOperationResult> ImportStudentsAsync(
         Guid instituteId,
-        Stream csvStream,
+        System.IO.Stream csvStream,
         ClaimsPrincipal actor,
         CancellationToken cancellationToken = default);
 

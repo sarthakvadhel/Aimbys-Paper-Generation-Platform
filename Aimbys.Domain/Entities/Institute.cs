@@ -98,4 +98,6 @@ public class Institute : IRestoreable
     public ICollection<ClassBatch> ClassBatches { get; set; } = new List<ClassBatch>();
     public ICollection<TeacherProfile> Teachers { get; set; } = new List<TeacherProfile>();
     public ICollection<StudentProfile> Students { get; set; } = new List<StudentProfile>();
+    public ICollection<Stream> Streams { get; set; } = new List<Stream>();
+    public ICollection<Major> Majors { get; set; } = new List<Major>();
 }

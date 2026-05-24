@@ -69,6 +69,11 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
     public DbSet<ArchivePolicy> ArchivePolicies => Set<ArchivePolicy>();
 
+    // ----- Org tree (Chunk 18) ---------------------------------------------
+    public DbSet<Domain.Entities.Stream> Streams => Set<Domain.Entities.Stream>();
+    public DbSet<Major> Majors => Set<Major>();
+    public DbSet<Chapter> Chapters => Set<Chapter>();
+
     // ----- Notification hardening + audit visibility (Chunk 13) ----------
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
     public DbSet<NotificationTemplateTranslation> NotificationTemplateTranslations
@@ -828,6 +833,43 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasIndex(x => x.ActionPattern)
              .IsUnique()
              .HasDatabaseName("UX_AuditVisibilityRules_ActionPattern");
+        });
+
+        // ===== Chunk 18 — institute org tree ===================================
+
+        // ---------- Stream (Chunk 18) -------------------------------------------
+        modelBuilder.Entity<Domain.Entities.Stream>(b =>
+        {
+            b.ToTable("Streams");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Description).HasMaxLength(500);
+            b.HasOne(x => x.Institute).WithMany(i => i.Streams).HasForeignKey(x => x.InstituteId).OnDelete(DeleteBehavior.Restrict);
+            b.HasMany(x => x.Majors).WithOne(m => m.Stream).HasForeignKey(m => m.StreamId).OnDelete(DeleteBehavior.Restrict);
+            b.HasIndex(x => new { x.InstituteId, x.Name }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Streams_InstituteId_Name");
+        });
+
+        // ---------- Major (Chunk 18) -------------------------------------------
+        modelBuilder.Entity<Major>(b =>
+        {
+            b.ToTable("Majors");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Description).HasMaxLength(500);
+            b.HasOne(x => x.Institute).WithMany(i => i.Majors).HasForeignKey(x => x.InstituteId).OnDelete(DeleteBehavior.Restrict);
+            b.HasIndex(x => new { x.InstituteId, x.StreamId, x.Name }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Majors_InstituteId_StreamId_Name");
+        });
+
+        // ---------- Chapter (Chunk 18) ------------------------------------------
+        modelBuilder.Entity<Chapter>(b =>
+        {
+            b.ToTable("Chapters");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.SortOrder).IsRequired();
+            b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
         });
 
         // ===== Soft-delete global query filter convention ==================

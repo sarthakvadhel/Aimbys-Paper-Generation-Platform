@@ -56,7 +56,7 @@ public sealed class BulkOperationService : IBulkOperationService
 
     public async Task<BulkOperationResult> ImportStudentsAsync(
         Guid instituteId,
-        Stream csvStream,
+        System.IO.Stream csvStream,
         ClaimsPrincipal actor,
         CancellationToken cancellationToken = default)
     {
@@ -472,7 +472,7 @@ public sealed class BulkOperationService : IBulkOperationService
     /// even on malformed input.
     /// </summary>
     private static List<StudentImportRow> ParseStudentCsv(
-        Stream csvStream,
+        System.IO.Stream csvStream,
         out List<BulkOperationError> parseErrors)
     {
         parseErrors = new List<BulkOperationError>();
