@@ -4,6 +4,7 @@ using Aimbys.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Aimbys.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260524220731_AddQuestionApproval")]
+    partial class AddQuestionApproval
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -163,290 +166,6 @@ namespace Aimbys.Infrastructure.Migrations
                         .HasDatabaseName("IX_AuditLogs_EntityType_EntityId");
 
                     b.ToTable("AuditLogs", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.AssessmentDesign", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("AssessmentType")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedByUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid>("InstituteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<Guid>("SubjectId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InstituteId")
-                        .HasDatabaseName("IX_AssessmentDesigns_InstituteId");
-
-                    b.ToTable("AssessmentDesigns", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.Blueprint", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("AssessmentDesignId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("CreatedByTeacherProfileId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("CurrentVersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("InstituteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("SubjectId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InstituteId")
-                        .HasDatabaseName("IX_Blueprints_InstituteId");
-
-                    b.HasIndex("InstituteId", "SubjectId")
-                        .HasDatabaseName("IX_Blueprints_InstituteId_SubjectId");
-
-                    b.ToTable("Blueprints", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintCohort", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("AcademicYearId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ClassBatchId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("DepartmentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("MajorId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("StreamId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("VersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VersionId")
-                        .HasDatabaseName("IX_BlueprintCohorts_VersionId");
-
-                    b.ToTable("BlueprintCohorts", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintConstraint", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ChapterId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("CompetencyId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Count")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DifficultyLevel")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Marks")
-                        .HasColumnType("int");
-
-                    b.Property<int>("QuestionType")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("VersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VersionId", "ChapterId", "CompetencyId", "DifficultyLevel", "QuestionType")
-                        .HasDatabaseName("IX_BlueprintConstraints_Composite");
-
-                    b.ToTable("BlueprintConstraints", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintSection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Marks")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("QuestionCount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TypeMix")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("VersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VersionId")
-                        .HasDatabaseName("IX_BlueprintSections_VersionId");
-
-                    b.ToTable("BlueprintSections", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintVersion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BlueprintId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("CohortJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ConstraintsJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("DurationMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("SectionsJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TotalMarks")
-                        .HasColumnType("int");
-
-                    b.Property<int>("VersionNumber")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BlueprintId", "VersionNumber")
-                        .IsUnique()
-                        .HasDatabaseName("UX_BlueprintVersions_BlueprintId_VersionNumber");
-
-                    b.ToTable("BlueprintVersions", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.Competency", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Code")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DeletedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<Guid>("InstituteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<Guid?>("ParentCompetencyId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InstituteId")
-                        .HasDatabaseName("IX_Competencies_InstituteId");
-
-                    b.HasIndex("ParentCompetencyId");
-
-                    b.HasIndex("InstituteId", "Code")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Competencies_InstituteId_Code")
-                        .HasFilter("[Code] IS NOT NULL AND [IsDeleted] = 0");
-
-                    b.ToTable("Competencies", (string)null);
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Chapter", b =>
@@ -1179,17 +898,9 @@ namespace Aimbys.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
-                    b.Property<Guid>("AuthorTeacherProfileId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ChapterId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CurrentVersionId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("InstituteId")
                         .HasColumnType("uniqueidentifier");
@@ -1199,9 +910,6 @@ namespace Aimbys.Infrastructure.Migrations
 
                     b.Property<Guid>("SubjectId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -1213,23 +921,11 @@ namespace Aimbys.Infrastructure.Migrations
 
                     b.HasIndex("InstituteId", "SubjectId", "Status")
                         .HasDatabaseName("IX_Questions_InstituteId_SubjectId_Status");
-                    b.HasIndex("AuthorTeacherProfileId")
-                        .HasDatabaseName("IX_Questions_AuthorTeacherProfileId");
-
-                    b.HasIndex("InstituteId")
-                        .HasDatabaseName("IX_Questions_InstituteId");
-
-                    b.HasIndex("SubjectId")
-                        .HasDatabaseName("IX_Questions_SubjectId");
-
-                    b.HasIndex("InstituteId", "Status")
-                        .HasDatabaseName("IX_Questions_InstituteId_Status");
 
                     b.ToTable("Questions", (string)null);
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionApproval", b =>
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionAsset", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1241,11 +937,6 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Property<string>("ApprovedByUserId")
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("FileAssetId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("QuestionId")
                         .HasColumnType("uniqueidentifier");
@@ -1255,35 +946,6 @@ namespace Aimbys.Infrastructure.Migrations
                         .HasColumnType("nvarchar(2000)");
 
                     b.Property<Guid>("WorkflowInstanceId")
-                    b.HasKey("Id");
-
-                    b.HasIndex("FileAssetId")
-                        .HasDatabaseName("IX_QuestionAssets_FileAssetId");
-
-                    b.HasIndex("QuestionId")
-                        .HasDatabaseName("IX_QuestionAssets_QuestionId");
-
-                    b.ToTable("QuestionAssets", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionExposureLog", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("ExposedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("InstituteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PaperId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("QuestionId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -1296,16 +958,6 @@ namespace Aimbys.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionModeration", b =>
-                    b.HasIndex("QuestionId")
-                        .HasDatabaseName("IX_QuestionExposureLogs_QuestionId");
-
-                    b.HasIndex("InstituteId", "ExposedAtUtc")
-                        .HasDatabaseName("IX_QuestionExposureLogs_InstituteId_ExposedAtUtc");
-
-                    b.ToTable("QuestionExposureLogs", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionOption", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1328,22 +980,6 @@ namespace Aimbys.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("QuestionId")
-                    b.Property<bool>("IsCorrect")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("VersionId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -1355,13 +991,6 @@ namespace Aimbys.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionReview", b =>
-                    b.HasIndex("VersionId")
-                        .HasDatabaseName("IX_QuestionOptions_VersionId");
-
-                    b.ToTable("QuestionOptions", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionRubricCriterion", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1398,64 +1027,6 @@ namespace Aimbys.Infrastructure.Migrations
                         .HasDatabaseName("IX_QuestionReviews_ReviewerTeacherProfileId_Verdict");
 
                     b.ToTable("QuestionReviews", (string)null);
-                    b.Property<string>("Criterion")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<decimal>("MaxPoints")
-                        .HasPrecision(8, 2)
-                        .HasColumnType("decimal(8,2)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("VersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VersionId")
-                        .HasDatabaseName("IX_QuestionRubricCriteria_VersionId");
-
-                    b.ToTable("QuestionRubricCriteria", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionTestCase", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ExpectedOutput")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Input")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsHidden")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("MemoryLimitMb")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TimeoutMs")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("VersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VersionId")
-                        .HasDatabaseName("IX_QuestionTestCases_VersionId");
-
-                    b.ToTable("QuestionTestCases", (string)null);
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionVersion", b =>
@@ -1463,14 +1034,6 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AuthorUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("BloomLevel")
-                        .HasColumnType("int");
 
                     b.Property<string>("BodyHtml")
                         .IsRequired()
@@ -1486,22 +1049,6 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Property<int>("Marks")
                         .HasColumnType("int");
 
-                    b.Property<int>("Difficulty")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("EstimatedTimeMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<string>("InstructionsHtml")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsCurrentVersion")
-                        .HasColumnType("bit");
-
-                    b.Property<decimal>("Marks")
-                        .HasPrecision(8, 2)
-                        .HasColumnType("decimal(8,2)");
-
                     b.Property<Guid>("QuestionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1509,184 +1056,12 @@ namespace Aimbys.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("QuestionId", "IsCurrentVersion")
-                        .HasDatabaseName("IX_QuestionVersions_QuestionId_IsCurrentVersion");
 
                     b.HasIndex("QuestionId", "VersionNumber")
                         .IsUnique()
                         .HasDatabaseName("UX_QuestionVersions_QuestionId_VersionNumber");
 
                     b.ToTable("QuestionVersions", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Papers.Paper", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("AuthorTeacherProfileId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CurrentVersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("InstituteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("SubjectId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AuthorTeacherProfileId", "Status")
-                        .HasDatabaseName("IX_Papers_AuthorTeacherProfileId_Status");
-
-                    b.HasIndex("InstituteId", "SubjectId", "Status")
-                        .HasDatabaseName("IX_Papers_InstituteId_SubjectId_Status");
-
-                    b.ToTable("Papers", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Papers.PaperQuestion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal?>("MarksOverride")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<Guid>("QuestionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("QuestionVersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("SectionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("VersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SectionId");
-
-                    b.HasIndex("VersionId");
-
-                    b.ToTable("PaperQuestions", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Papers.PaperSection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Marks")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("VersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VersionId");
-
-                    b.ToTable("PaperSections", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Papers.PaperVersion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AuthorUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<Guid?>("BlueprintVersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("DurationMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("PaperId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("TotalMarks")
-                        .HasColumnType("int");
-
-                    b.Property<int>("VersionNumber")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PaperId", "VersionNumber")
-                        .IsUnique()
-                        .HasDatabaseName("UX_PaperVersions_PaperId_VersionNumber");
-
-                    b.ToTable("PaperVersions", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Papers.PublishedSnapshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("PaperVersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("SnapshotJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PaperVersionId")
-                        .HasDatabaseName("IX_PublishedSnapshots_PaperVersionId");
-
-                    b.ToTable("PublishedSnapshots", (string)null);
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Retention.ArchivePolicy", b =>
@@ -2744,60 +2119,6 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Navigation("Institute");
                 });
 
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintCohort", b =>
-                {
-                    b.HasOne("Aimbys.Domain.Entities.Blueprints.BlueprintVersion", "Version")
-                        .WithMany("Cohorts")
-                        .HasForeignKey("VersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Version");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintConstraint", b =>
-                {
-                    b.HasOne("Aimbys.Domain.Entities.Blueprints.BlueprintVersion", "Version")
-                        .WithMany("Constraints")
-                        .HasForeignKey("VersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Version");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintSection", b =>
-                {
-                    b.HasOne("Aimbys.Domain.Entities.Blueprints.BlueprintVersion", "Version")
-                        .WithMany("Sections")
-                        .HasForeignKey("VersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Version");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintVersion", b =>
-                {
-                    b.HasOne("Aimbys.Domain.Entities.Blueprints.Blueprint", "Blueprint")
-                        .WithMany("Versions")
-                        .HasForeignKey("BlueprintId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Blueprint");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.Competency", b =>
-                {
-                    b.HasOne("Aimbys.Domain.Entities.Blueprints.Competency", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentCompetencyId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Parent");
-                });
-
             modelBuilder.Entity("Aimbys.Domain.Entities.Chapter", b =>
                 {
                     b.HasOne("Aimbys.Domain.Entities.Subject", "Subject")
@@ -2908,39 +2229,6 @@ namespace Aimbys.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Template");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionOption", b =>
-                {
-                    b.HasOne("Aimbys.Domain.Entities.Questions.QuestionVersion", "Version")
-                        .WithMany("Options")
-                        .HasForeignKey("VersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Version");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionRubricCriterion", b =>
-                {
-                    b.HasOne("Aimbys.Domain.Entities.Questions.QuestionVersion", "Version")
-                        .WithMany("RubricCriteria")
-                        .HasForeignKey("VersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Version");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionTestCase", b =>
-                {
-                    b.HasOne("Aimbys.Domain.Entities.Questions.QuestionVersion", "Version")
-                        .WithMany("TestCases")
-                        .HasForeignKey("VersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Version");
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionVersion", b =>
@@ -3121,25 +2409,6 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Navigation("ClassBatches");
                 });
 
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.Blueprint", b =>
-                {
-                    b.Navigation("Versions");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.BlueprintVersion", b =>
-                {
-                    b.Navigation("Cohorts");
-
-                    b.Navigation("Constraints");
-
-                    b.Navigation("Sections");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Blueprints.Competency", b =>
-                {
-                    b.Navigation("Children");
-                });
-
             modelBuilder.Entity("Aimbys.Domain.Entities.ClassBatch", b =>
                 {
                     b.Navigation("Students");
@@ -3181,15 +2450,6 @@ namespace Aimbys.Infrastructure.Migrations
             modelBuilder.Entity("Aimbys.Domain.Entities.Questions.Question", b =>
                 {
                     b.Navigation("Versions");
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionVersion", b =>
-                {
-                    b.Navigation("Options");
-
-                    b.Navigation("RubricCriteria");
-
-                    b.Navigation("TestCases");
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Stream", b =>
