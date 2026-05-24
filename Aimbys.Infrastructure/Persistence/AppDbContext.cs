@@ -1,6 +1,7 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Exams;
 using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
@@ -73,6 +74,13 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Domain.Entities.Stream> Streams => Set<Domain.Entities.Stream>();
     public DbSet<Major> Majors => Set<Major>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
+
+    // ----- Exam security (Chunk 26) ----------------------------------------
+    public DbSet<Exam> Exams => Set<Exam>();
+    public DbSet<ExamAttempt> ExamAttempts => Set<ExamAttempt>();
+    public DbSet<ExamSecurityProfile> ExamSecurityProfiles => Set<ExamSecurityProfile>();
+    public DbSet<ExamSession> ExamSessions => Set<ExamSession>();
+    public DbSet<ExamEvent> ExamEvents => Set<ExamEvent>();
 
     // ----- Notification hardening + audit visibility (Chunk 13) ----------
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
@@ -870,6 +878,62 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 26 — exam security profile + event timeline ==============
+
+        // ---------- Exam (minimal) ------------------------------------------
+        modelBuilder.Entity<Exam>(b =>
+        {
+            b.ToTable("Exams");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).IsRequired().HasMaxLength(300);
+            b.Property(x => x.ScheduledAtUtc).IsRequired();
+            b.Property(x => x.DurationMinutes).IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_Exams_InstituteId");
+        });
+
+        // ---------- ExamAttempt ---------------------------------------------
+        modelBuilder.Entity<ExamAttempt>(b =>
+        {
+            b.ToTable("ExamAttempts");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.StudentUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.StartedAtUtc).IsRequired();
+            b.HasOne(x => x.Exam).WithMany().HasForeignKey(x => x.ExamId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => new { x.ExamId, x.StudentUserId }).HasDatabaseName("IX_ExamAttempts_ExamId_StudentUserId");
+        });
+
+        // ---------- ExamSecurityProfile -------------------------------------
+        modelBuilder.Entity<ExamSecurityProfile>(b =>
+        {
+            b.ToTable("ExamSecurityProfiles");
+            b.HasKey(x => x.Id);
+            b.HasOne(x => x.Exam).WithOne().HasForeignKey<ExamSecurityProfile>(x => x.ExamId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => x.ExamId).IsUnique().HasDatabaseName("UX_ExamSecurityProfiles_ExamId");
+        });
+
+        // ---------- ExamSession ---------------------------------------------
+        modelBuilder.Entity<ExamSession>(b =>
+        {
+            b.ToTable("ExamSessions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.DeviceFingerprint).HasMaxLength(500);
+            b.Property(x => x.IpAddress).HasMaxLength(45);
+            b.Property(x => x.UserAgent).HasMaxLength(1000);
+            b.HasIndex(x => x.AttemptId).IsUnique().HasDatabaseName("UX_ExamSessions_AttemptId");
+        });
+
+        // ---------- ExamEvent -----------------------------------------------
+        modelBuilder.Entity<ExamEvent>(b =>
+        {
+            b.ToTable("ExamEvents");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).ValueGeneratedOnAdd();
+            b.Property(x => x.EventType).HasConversion<int>().IsRequired();
+            b.Property(x => x.DetailsJson).HasColumnType("nvarchar(max)");
+            b.HasIndex(x => new { x.AttemptId, x.OccurredAtUtc }).HasDatabaseName("IX_ExamEvents_AttemptId_OccurredAtUtc");
         });
 
         // ===== Soft-delete global query filter convention ==================
