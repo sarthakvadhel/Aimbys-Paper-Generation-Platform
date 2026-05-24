@@ -1,4 +1,4 @@
-using Aimbys.Domain.Entities.Exams;
+using Aimbys.Application.Exams;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -7,61 +7,72 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aimbys.Web.Areas.Institute.Controllers;
 
+/// <summary>
+/// Institute-admin exam management: calendar view and scheduling.
+/// </summary>
 [Area("Institute")]
 [Authorize(Roles = Roles.InstituteAdmin)]
 public class ExamsController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly IExamSchedulingService _scheduling;
 
-    public ExamsController(AppDbContext db)
+    public ExamsController(AppDbContext db, IExamSchedulingService scheduling)
     {
         _db = db;
+        _scheduling = scheduling;
     }
 
+    /// <summary>GET /Institute/Exams/Calendar — list of exams.</summary>
     [HttpGet]
-    public async Task<IActionResult> SecurityProfile(Guid examId)
+    public async Task<IActionResult> Calendar(CancellationToken ct)
     {
-        var profile = await _db.ExamSecurityProfiles
-            .FirstOrDefaultAsync(p => p.ExamId == examId);
+        var exams = await _db.Exams
+            .OrderByDescending(e => e.ScheduledAtUtc)
+            .Take(100)
+            .ToListAsync(ct);
 
-        if (profile is null)
-        {
-            profile = new ExamSecurityProfile { ExamId = examId };
-        }
-
-        return View(profile);
+        return View(exams);
     }
 
+    /// <summary>GET /Institute/Exams/Schedule — form.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Schedule(CancellationToken ct)
+    {
+        ViewBag.ClassBatches = await _db.ClassBatches
+            .OrderBy(cb => cb.Name)
+            .ToListAsync(ct);
+
+        return View();
+    }
+
+    /// <summary>POST /Institute/Exams/Schedule — create exam.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SecurityProfile(ExamSecurityProfile model)
+    public async Task<IActionResult> Schedule(
+        Guid paperVersionId,
+        Guid classBatchId,
+        string title,
+        DateTime scheduledAtUtc,
+        int durationMinutes,
+        CancellationToken ct)
     {
-        if (!ModelState.IsValid)
-            return View(model);
+        var request = new ExamScheduleRequest(
+            paperVersionId,
+            classBatchId,
+            title,
+            scheduledAtUtc,
+            durationMinutes);
 
-        var existing = await _db.ExamSecurityProfiles
-            .FirstOrDefaultAsync(p => p.ExamId == model.ExamId);
+        var result = await _scheduling.ScheduleAsync(request, User, ct);
 
-        if (existing is null)
+        if (!result.Success)
         {
-            _db.ExamSecurityProfiles.Add(model);
-        }
-        else
-        {
-            existing.RequireFullscreen = model.RequireFullscreen;
-            existing.DetectTabSwitch = model.DetectTabSwitch;
-            existing.DetectResize = model.DetectResize;
-            existing.BlockCopyPaste = model.BlockCopyPaste;
-            existing.BlockKeyboardShortcuts = model.BlockKeyboardShortcuts;
-            existing.HeartbeatIntervalSeconds = model.HeartbeatIntervalSeconds;
-            existing.MaxConnectionLossSeconds = model.MaxConnectionLossSeconds;
-            existing.AutoSubmitOnTimeout = model.AutoSubmitOnTimeout;
-            existing.TrackDevice = model.TrackDevice;
-            existing.TrackSession = model.TrackSession;
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Schedule));
         }
 
-        await _db.SaveChangesAsync();
-        TempData["Success"] = "Security profile saved.";
-        return RedirectToAction(nameof(SecurityProfile), new { examId = model.ExamId });
+        TempData["Success"] = "Exam scheduled successfully.";
+        return RedirectToAction(nameof(Calendar));
     }
 }

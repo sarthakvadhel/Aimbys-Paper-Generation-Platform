@@ -1,0 +1,98 @@
+@model Aimbys.Domain.Entities.Papers.Paper
+@{
+    ViewData["Title"] = "Edit Paper";
+    var currentVersion = Model.Versions.FirstOrDefault(v => v.Id == Model.CurrentVersionId);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">@(currentVersion?.Title ?? "Untitled Paper")</h4>
+    <div>
+        @if (Model.Status == Aimbys.Domain.Enums.PaperStatus.Draft || Model.Status == Aimbys.Domain.Enums.PaperStatus.Returned)
+        {
+            <form method="post" asp-action="Submit" asp-route-id="@Model.Id" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-send me-1"></i>Submit for Approval
+                </button>
+            </form>
+        }
+        <a asp-action="Preview" asp-route-id="@Model.Id" class="btn btn-outline-secondary ms-2">
+            <i class="bi bi-eye me-1"></i>Preview
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Paper Info</div>
+            <div class="card-body">
+                <dl>
+                    <dt>Status</dt>
+                    <dd>@Model.Status</dd>
+                    <dt>Total Marks</dt>
+                    <dd>@(currentVersion?.TotalMarks ?? 0)</dd>
+                    <dt>Duration</dt>
+                    <dd>@(currentVersion?.DurationMinutes ?? 0) minutes</dd>
+                    <dt>Version</dt>
+                    <dd>@(currentVersion?.VersionNumber ?? 1)</dd>
+                </dl>
+            </div>
+        </div>
+
+        @if (currentVersion != null)
+        {
+            <div class="card mt-3">
+                <div class="card-header">Sections (@currentVersion.Sections.Count)</div>
+                <ul class="list-group list-group-flush">
+                    @foreach (var sec in currentVersion.Sections.OrderBy(s => s.SortOrder))
+                    {
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>@sec.Name</span>
+                            <span class="badge bg-primary">@sec.Marks marks</span>
+                        </li>
+                    }
+                    @if (!currentVersion.Sections.Any())
+                    {
+                        <li class="list-group-item text-muted">No sections yet</li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">Questions</div>
+            <div class="card-body">
+                @if (currentVersion?.Questions.Any() == true)
+                {
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Question ID</th>
+                                <th>Marks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var q in currentVersion.Questions.OrderBy(q => q.SortOrder))
+                            {
+                                <tr>
+                                    <td>@q.SortOrder</td>
+                                    <td><code>@q.QuestionId.ToString()[..8]...</code></td>
+                                    <td>@(q.MarksOverride?.ToString("0.##") ?? "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted mb-0">
+                        No questions added yet. Use the question bank or generate from a blueprint to populate this paper.
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

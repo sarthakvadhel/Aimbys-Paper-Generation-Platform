@@ -1,3 +1,4 @@
+using Aimbys.Application.Blueprints;
 using Aimbys.Application.OrgTree;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Audit;
@@ -8,11 +9,14 @@ using Aimbys.Application.Exams;
 using Aimbys.Application.Institutes;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
+using Aimbys.Application.Questions;
 using Aimbys.Application.Scheduling;
 using Aimbys.Application.SoftDelete;
+using Aimbys.Application.Users;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
+using Aimbys.Infrastructure.Blueprints;
 using Aimbys.Infrastructure.OrgTree;
 using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;
@@ -23,11 +27,14 @@ using Aimbys.Infrastructure.Exams;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Institutes;
 using Aimbys.Infrastructure.Notifications;
+using Aimbys.Infrastructure.Papers;
 using Aimbys.Infrastructure.Persistence;
+using Aimbys.Infrastructure.Questions;
 using Aimbys.Infrastructure.Retention;
 using Aimbys.Infrastructure.Scheduling;
 using Aimbys.Infrastructure.SoftDelete;
 using Aimbys.Infrastructure.Storage;
+using Aimbys.Infrastructure.Users;
 using Aimbys.Infrastructure.Workflow;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -228,8 +235,12 @@ public static class DependencyInjection
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
 
-        // ----- Exam security (Chunk 26) ---------------------------------
-        services.AddScoped<IExamSecurityService, ExamSecurityService>();
+        // ----- Question lifecycle (Chunk 21) ----------------------------
+        services.AddScoped<IQuestionLifecycleService, Aimbys.Infrastructure.Questions.QuestionLifecycleService>();
+        // ----- Question authoring (Chunk 20) ----------------------------
+        services.AddScoped<IQuestionAuthoringService, QuestionAuthoringService>();
+        // ----- User management (Chunk 19) -------------------------------
+        services.AddScoped<IUserManagementService, UserManagementService>();
 
         return services;
     }

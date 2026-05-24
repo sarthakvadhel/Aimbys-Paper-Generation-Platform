@@ -1,6 +1,8 @@
 using Aimbys.Application.Scheduling;
 using Aimbys.Infrastructure;
+using Aimbys.Infrastructure.Exams;
 using Aimbys.Infrastructure.Identity;
+using Aimbys.Infrastructure.Questions;
 using Aimbys.Infrastructure.Retention;
 using Aimbys.Infrastructure.Storage;
 using Aimbys.Web.Middleware;
@@ -103,6 +105,9 @@ using (var scope = app.Services.CreateScope())
         await scheduler.ScheduleRecurringAsync(
             RetentionEnforcementJobHandler.Key,
             RetentionEnforcementJobHandler.DefaultCron);
+        await scheduler.ScheduleRecurringAsync(
+            QuestionAnalyticsAggregator.Key,
+            QuestionAnalyticsAggregator.DefaultCron);
     }
     catch (Exception ex)
     {
