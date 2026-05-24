@@ -76,8 +76,20 @@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    @* Chart.js 4.5.0 from cdnjs with SRI integrity. The KpiCard /
+       ChartCard surfaces in Chunk 16 onward depend on this script.
+       Loaded `defer` so it doesn't block first paint; charts.js below
+       binds canvases on DOMContentLoaded after Chart.js resolves. *@
+    <script defer
+            src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"
+            integrity="sha512-Y51n9mtKTVBh3Jbx5pZSJNDDMyY+yGe77DGtBPzRlgsf/YLCh13kSZ3JmfHGzYFCmOndraf0sQgfM654b7dJ3w=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/role-shell.js" asp-append-version="true"></script>
+    <script defer src="~/js/charts.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

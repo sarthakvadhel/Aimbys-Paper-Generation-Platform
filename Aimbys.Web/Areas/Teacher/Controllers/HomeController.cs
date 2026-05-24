@@ -5,14 +5,28 @@ using Microsoft.AspNetCore.Mvc;
 namespace Aimbys.Web.Areas.Teacher.Controllers;
 
 /// <summary>
-/// Landing surface for the Teacher / Examiner role. Reached via
-/// <c>/Teacher</c> after sign-in. Real teacher tooling (paper
-/// generation, evaluation, moderation queues) lands in later chunks;
-/// this page exists so Chunk 14's post-login redirect has a target.
+/// Landing surface for the Teacher / Examiner role. Real teacher
+/// tooling (paper generation, evaluation desk, moderation queues)
+/// lands in later chunks; today the dashboard uses the seed data
+/// from <c>TeacherDashboard.tsx</c>.
 /// </summary>
 [Area("Teacher")]
 [Authorize(Roles = Roles.Teacher)]
 public class HomeController : Controller
 {
     public IActionResult Index() => View();
+
+    /// <summary>Per-class average bar chart (XII-A, XII-B, XI-A, …).</summary>
+    [HttpGet]
+    public IActionResult ClassAvgData()
+    {
+        return Json(new
+        {
+            labels = new[] { "XII-A", "XII-B", "XI-A", "XI-B", "X-C" },
+            datasets = new object[]
+            {
+                new { label = "Avg Score (%)", data = new[] { 74, 68, 71, 65, 78 } }
+            }
+        });
+    }
 }
