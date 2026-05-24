@@ -65,7 +65,7 @@ public static class RoleNavCatalog
         new RoleNavSection("Main", new[]
         {
             new RoleNavLink("Dashboard",        "Index", "Home",        "SuperAdmin", "speedometer", IsImplemented: true),
-            new RoleNavLink("Institutes",       "Index", "Institutes",  "SuperAdmin", "building"),
+            new RoleNavLink("Institutes",       "Index", "Institutes",  "SuperAdmin", "building", IsImplemented: true),
             new RoleNavLink("Global Analytics", "Index", "Analytics",   "SuperAdmin", "graph-up"),
         }),
         new RoleNavSection("Management", new[]
