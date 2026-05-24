@@ -2,6 +2,7 @@ using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Notifications;
+using Aimbys.Domain.Entities.Papers;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
@@ -82,6 +83,13 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Paper generation (Chunk 24) --------------------------------------
+    public DbSet<Paper> Papers => Set<Paper>();
+    public DbSet<PaperVersion> PaperVersions => Set<PaperVersion>();
+    public DbSet<PaperSection> PaperSections => Set<PaperSection>();
+    public DbSet<PaperQuestion> PaperQuestions => Set<PaperQuestion>();
+    public DbSet<PublishedSnapshot> PublishedSnapshots => Set<PublishedSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -880,6 +888,52 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         // it here (after individual configs) means new soft-deletable
         // entities pick up the filter for free — no per-entity
         // boilerplate to remember.
+
+        // ===== Chunk 24 — paper generation ==================================
+
+        modelBuilder.Entity<Paper>(b =>
+        {
+            b.ToTable("Papers");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.HasMany(x => x.Versions).WithOne(v => v.Paper).HasForeignKey(v => v.PaperId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => new { x.InstituteId, x.SubjectId, x.Status }).HasDatabaseName("IX_Papers_InstituteId_SubjectId_Status");
+            b.HasIndex(x => new { x.AuthorTeacherProfileId, x.Status }).HasDatabaseName("IX_Papers_AuthorTeacherProfileId_Status");
+        });
+
+        modelBuilder.Entity<PaperVersion>(b =>
+        {
+            b.ToTable("PaperVersions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).IsRequired().HasMaxLength(500);
+            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(450);
+            b.HasMany(x => x.Sections).WithOne(s => s.Version).HasForeignKey(s => s.VersionId).OnDelete(DeleteBehavior.Cascade);
+            b.HasMany(x => x.Questions).WithOne(q => q.Version).HasForeignKey(q => q.VersionId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => new { x.PaperId, x.VersionNumber }).IsUnique().HasDatabaseName("UX_PaperVersions_PaperId_VersionNumber");
+        });
+
+        modelBuilder.Entity<PaperSection>(b =>
+        {
+            b.ToTable("PaperSections");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<PaperQuestion>(b =>
+        {
+            b.ToTable("PaperQuestions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.MarksOverride).HasPrecision(5, 2);
+        });
+
+        modelBuilder.Entity<PublishedSnapshot>(b =>
+        {
+            b.ToTable("PublishedSnapshots");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SnapshotJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.HasIndex(x => x.PaperVersionId).HasDatabaseName("IX_PublishedSnapshots_PaperVersionId");
+        });
+
         ApplySoftDeleteQueryFilters(modelBuilder);
     }
 
