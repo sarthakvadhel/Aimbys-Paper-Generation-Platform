@@ -1,3 +1,4 @@
+using Aimbys.Application.Blueprints;
 using Aimbys.Application.OrgTree;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Audit;
@@ -14,6 +15,7 @@ using Aimbys.Application.Users;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
+using Aimbys.Infrastructure.Blueprints;
 using Aimbys.Infrastructure.OrgTree;
 using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;

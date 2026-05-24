@@ -1,5 +1,6 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
+using Aimbys.Domain.Entities.Blueprints;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Questions;
