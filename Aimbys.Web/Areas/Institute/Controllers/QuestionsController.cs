@@ -1,7 +1,12 @@
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Questions;
+using Aimbys.Domain.Enums;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Persistence;
+using Aimbys.Domain.Entities.Questions;
+using Aimbys.Infrastructure.Identity;
+using Aimbys.Infrastructure.Persistence;
+using Aimbys.Web.ViewModels.Questions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,85 +14,104 @@ using Microsoft.EntityFrameworkCore;
 namespace Aimbys.Web.Areas.Institute.Controllers;
 
 [Area("Institute")]
-[Authorize(Roles = Roles.InstituteAdmin)]
+[Authorize(Roles = Roles.InstituteAdmin + "," + Roles.Teacher)]
 public class QuestionsController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly IQuestionLifecycleService _lifecycle;
     private readonly IInstituteScope _scope;
-    private readonly IQuestionAnalyticsService _analytics;
 
     public QuestionsController(
         AppDbContext db,
-        IInstituteScope scope,
-        IQuestionAnalyticsService analytics)
+        IQuestionLifecycleService lifecycle,
+        IInstituteScope scope)
     {
         _db = db;
+        _lifecycle = lifecycle;
         _scope = scope;
-        _analytics = analytics;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> Analytics(Guid questionId, CancellationToken ct)
+    public async Task<IActionResult> Index(CancellationToken ct)
     {
         var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
         if (instituteId is null) return Forbid();
 
-        var summary = await _analytics.GetUsageSummaryAsync(questionId, ct);
-        var risk = await _analytics.GetExposureRiskAsync(questionId, ct);
-
-        var exposureLogs = await _db.QuestionExposureLogs
-            .Where(e => e.QuestionId == questionId && e.InstituteId == instituteId.Value)
-            .OrderByDescending(e => e.ExposedAtUtc)
-            .Take(50)
+        var questions = await _db.Questions
+            .Where(q => q.InstituteId == instituteId.Value)
+            .OrderByDescending(q => q.UpdatedAtUtc)
             .ToListAsync(ct);
 
-        ViewBag.QuestionId = questionId;
-        ViewBag.Summary = summary;
-        ViewBag.Risk = risk;
-        ViewBag.ExposureLogs = exposureLogs;
+        return View(questions);
+[Authorize(Roles = Roles.InstituteAdmin)]
+public class QuestionsController : Controller
+{
+    private readonly AppDbContext _db;
+    private readonly IInstituteScope _instituteScope;
 
+    public QuestionsController(AppDbContext db, IInstituteScope instituteScope)
+    {
+        _db = db;
+        _instituteScope = instituteScope;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Index(CancellationToken ct)
+    {
+        var instituteId = await _instituteScope.GetCurrentInstituteIdAsync(User, ct);
+        if (instituteId is null)
+            return View(new QuestionIndexViewModel());
+
+        var questions = await _db.Set<Question>()
+            .Where(q => q.InstituteId == instituteId.Value)
+            .OrderByDescending(q => q.CreatedAtUtc)
+            .Join(_db.Subjects, q => q.SubjectId, s => s.Id, (q, s) => new { q, SubjectName = s.Name })
+            .Select(x => new QuestionRowViewModel
+            {
+                Id = x.q.Id,
+                Type = x.q.Type,
+                Status = x.q.Status,
+                SubjectName = x.SubjectName,
+                Difficulty = _db.Set<QuestionVersion>()
+                    .Where(v => v.QuestionId == x.q.Id && v.IsCurrentVersion)
+                    .Select(v => v.Difficulty)
+                    .FirstOrDefault(),
+                Marks = _db.Set<QuestionVersion>()
+                    .Where(v => v.QuestionId == x.q.Id && v.IsCurrentVersion)
+                    .Select(v => v.Marks)
+                    .FirstOrDefault(),
+                CreatedAtUtc = x.q.CreatedAtUtc,
+                BodyPreview = _db.Set<QuestionVersion>()
+                    .Where(v => v.QuestionId == x.q.Id && v.IsCurrentVersion)
+                    .Select(v => v.BodyHtml.Substring(0, 100))
+                    .FirstOrDefault() ?? string.Empty
+            })
+            .ToListAsync(ct);
+
+        return View(new QuestionIndexViewModel { Questions = questions });
+    }
+
+    [HttpGet]
+    public IActionResult Import()
+    {
         return View();
     }
 
-    [HttpGet]
-    public async Task<IActionResult> UsageChartData(Guid questionId, CancellationToken ct)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssignReviewer(Guid questionId, Guid reviewerProfileId, CancellationToken ct)
     {
-        var rows = await _db.QuestionUsageAnalytics
-            .Where(a => a.QuestionId == questionId)
-            .OrderBy(a => a.ComputedAtUtc)
-            .ToListAsync(ct);
-
-        var labels = rows.Select(r => r.ComputedAtUtc.ToString("yyyy-MM-dd")).ToArray();
-        var data = rows.Select(r => r.PapersUsedIn).ToArray();
-
-        return Json(new
+        var result = await _lifecycle.AssignReviewerAsync(questionId, reviewerProfileId, User, ct);
+        if (!result.Success)
         {
-            labels,
-            datasets = new[]
-            {
-                new { label = "Papers Used", data }
-            }
-        });
-    }
+            TempData["Error"] = result.ErrorMessage;
+            return RedirectToAction(nameof(Index));
+        }
 
-    [HttpGet]
-    public async Task<IActionResult> DifficultyAuditData(Guid questionId, CancellationToken ct)
+        TempData["Success"] = "Reviewer assigned.";
+    public IActionResult Import(IFormFile? file)
     {
-        var rows = await _db.QuestionDifficultyAudits
-            .Where(a => a.QuestionId == questionId)
-            .OrderBy(a => a.ComputedAtUtc)
-            .ToListAsync(ct);
-
-        var labels = rows.Select(r => r.ComputedAtUtc.ToString("yyyy-MM-dd")).ToArray();
-        var data = rows.Select(r => r.ConfidencePercent).ToArray();
-
-        return Json(new
-        {
-            labels,
-            datasets = new[]
-            {
-                new { label = "P-Value", data }
-            }
-        });
+        // Stub: import functionality will be implemented in a later chunk
+        TempData["Info"] = "Import functionality is not yet implemented.";
+        return RedirectToAction(nameof(Index));
     }
 }

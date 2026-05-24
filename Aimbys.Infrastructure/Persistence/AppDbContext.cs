@@ -6,6 +6,7 @@ using Aimbys.Domain.Entities.Questions;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
+using Aimbys.Domain.Enums;
 using Aimbys.Domain.SoftDelete;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -75,10 +76,12 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Major> Majors => Set<Major>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
 
-    // ----- Question analytics (Chunk 22) -----------------------------------
-    public DbSet<QuestionUsageAnalytics> QuestionUsageAnalytics => Set<QuestionUsageAnalytics>();
-    public DbSet<QuestionDifficultyAudit> QuestionDifficultyAudits => Set<QuestionDifficultyAudit>();
-    public DbSet<QuestionExposureLog> QuestionExposureLogs => Set<QuestionExposureLog>();
+    // ----- Question approval workflow (Chunk 21) ---------------------------
+    public DbSet<Question> Questions => Set<Question>();
+    public DbSet<QuestionVersion> QuestionVersions => Set<QuestionVersion>();
+    public DbSet<QuestionReview> QuestionReviews => Set<QuestionReview>();
+    public DbSet<QuestionApproval> QuestionApprovals => Set<QuestionApproval>();
+    public DbSet<QuestionModeration> QuestionModerations => Set<QuestionModeration>();
 
     // ----- Notification hardening + audit visibility (Chunk 13) ----------
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
@@ -88,6 +91,15 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Question authoring + versioning (Chunk 20) --------------------
+    public DbSet<Question> Questions => Set<Question>();
+    public DbSet<QuestionVersion> QuestionVersions => Set<QuestionVersion>();
+    public DbSet<QuestionOption> QuestionOptions => Set<QuestionOption>();
+    public DbSet<QuestionRubricCriterion> QuestionRubricCriteria => Set<QuestionRubricCriterion>();
+    public DbSet<QuestionTestCase> QuestionTestCases => Set<QuestionTestCase>();
+    public DbSet<QuestionAsset> QuestionAssets => Set<QuestionAsset>();
+    public DbSet<QuestionExposureLog> QuestionExposureLogs => Set<QuestionExposureLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -878,31 +890,158 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
         });
 
-        // ===== Chunk 22 — question analytics + difficulty audit + exposure ===
+        // ===== Chunk 21 — question approval workflow ============================
+        // ===== Chunk 20 — question authoring + versioning ====================
 
-        // ---------- QuestionUsageAnalytics ----------------------------------
-        modelBuilder.Entity<QuestionUsageAnalytics>(b =>
+        // ---------- Question ------------------------------------------------
+        modelBuilder.Entity<Question>(b =>
         {
-            b.ToTable("QuestionUsageAnalytics");
+            b.ToTable("Questions");
             b.HasKey(x => x.Id);
-            b.Property(x => x.PValue).HasPrecision(5, 4);
-            b.Property(x => x.DiscriminationIndex).HasPrecision(5, 4);
-            b.HasIndex(x => new { x.QuestionId, x.AcademicYearId })
-             .IsUnique()
-             .HasDatabaseName("UX_QuestionUsageAnalytics_QuestionId_AcademicYearId");
+            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.Type).HasConversion<int>().IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
+
+            b.HasMany(x => x.Versions)
+             .WithOne(v => v.Question)
+             .HasForeignKey(v => v.QuestionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.InstituteId, x.SubjectId, x.Status })
+             .HasDatabaseName("IX_Questions_InstituteId_SubjectId_Status");
+            b.HasIndex(x => x.AuthorUserId)
+             .HasDatabaseName("IX_Questions_AuthorUserId");
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_Questions_InstituteId");
+            b.HasIndex(x => x.SubjectId).HasDatabaseName("IX_Questions_SubjectId");
+            b.HasIndex(x => x.AuthorTeacherProfileId).HasDatabaseName("IX_Questions_AuthorTeacherProfileId");
+            b.HasIndex(x => new { x.InstituteId, x.Status }).HasDatabaseName("IX_Questions_InstituteId_Status");
         });
 
-        // ---------- QuestionDifficultyAudit ---------------------------------
-        modelBuilder.Entity<QuestionDifficultyAudit>(b =>
+        // ---------- QuestionVersion -----------------------------------------
+        modelBuilder.Entity<QuestionVersion>(b =>
         {
-            b.ToTable("QuestionDifficultyAudits");
+            b.ToTable("QuestionVersions");
             b.HasKey(x => x.Id);
-            b.Property(x => x.AuthoredDifficulty).HasConversion<int>().IsRequired();
-            b.Property(x => x.ComputedDifficulty).HasConversion<int>().IsRequired();
-            b.Property(x => x.DriftDirection).HasConversion<int>().IsRequired();
-            b.Property(x => x.ConfidencePercent).HasPrecision(5, 2);
-            b.HasIndex(x => new { x.QuestionId, x.ComputedAtUtc })
-             .HasDatabaseName("IX_QuestionDifficultyAudits_QuestionId_ComputedAtUtc");
+            b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.Marks).IsRequired();
+            b.Property(x => x.DifficultyTag).HasMaxLength(50);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => new { x.QuestionId, x.VersionNumber })
+             .IsUnique()
+             .HasDatabaseName("UX_QuestionVersions_QuestionId_VersionNumber");
+        });
+
+        // ---------- QuestionReview ------------------------------------------
+        modelBuilder.Entity<QuestionReview>(b =>
+        {
+            b.ToTable("QuestionReviews");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Verdict).HasConversion<int>().IsRequired();
+            b.Property(x => x.Comment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.ReviewerTeacherProfileId, x.Verdict }).HasDatabaseName("IX_QuestionReviews_ReviewerTeacherProfileId_Verdict");
+            b.HasIndex(x => x.QuestionId).HasDatabaseName("IX_QuestionReviews_QuestionId");
+        });
+
+        // ---------- QuestionApproval ----------------------------------------
+        modelBuilder.Entity<QuestionApproval>(b =>
+        {
+            b.ToTable("QuestionApprovals");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ApprovedByUserId).HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.RejectionComment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.QuestionId, x.WorkflowInstanceId }).IsUnique().HasDatabaseName("UX_QuestionApprovals_QuestionId_WorkflowInstanceId");
+        });
+
+        // ---------- QuestionModeration --------------------------------------
+        modelBuilder.Entity<QuestionModeration>(b =>
+        {
+            b.ToTable("QuestionModerations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.FinalVerdict).HasConversion<int>().IsRequired();
+            b.Property(x => x.Comment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.ModeratorTeacherProfileId, x.CompletedAtUtc }).HasDatabaseName("IX_QuestionModerations_ModeratorTeacherProfileId_CompletedAtUtc");
+
+            b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.Difficulty).HasConversion<int>().IsRequired();
+            b.Property(x => x.BloomLevel).HasConversion<int>().IsRequired();
+            b.Property(x => x.Marks).HasPrecision(8, 2).IsRequired();
+            b.Property(x => x.InstructionsHtml).HasColumnType("nvarchar(max)");
+            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(AppDbContext.IdentityUserIdLength);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasMany(x => x.Options)
+             .WithOne(o => o.Version)
+             .HasForeignKey(o => o.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.RubricCriteria)
+             .WithOne(r => r.Version)
+             .HasForeignKey(r => r.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.TestCases)
+             .WithOne(t => t.Version)
+             .HasForeignKey(t => t.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.QuestionId, x.VersionNumber })
+             .IsUnique()
+             .HasDatabaseName("UX_QuestionVersions_QuestionId_VersionNumber");
+            b.HasIndex(x => new { x.QuestionId, x.IsCurrentVersion })
+             .HasDatabaseName("IX_QuestionVersions_QuestionId_IsCurrentVersion");
+        });
+
+        // ---------- QuestionOption ------------------------------------------
+        modelBuilder.Entity<QuestionOption>(b =>
+        {
+            b.ToTable("QuestionOptions");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Label).IsRequired().HasMaxLength(10);
+            b.Property(x => x.Text).IsRequired().HasColumnType("nvarchar(max)");
+
+            b.HasIndex(x => x.VersionId).HasDatabaseName("IX_QuestionOptions_VersionId");
+        });
+
+        // ---------- QuestionRubricCriterion ----------------------------------
+        modelBuilder.Entity<QuestionRubricCriterion>(b =>
+        {
+            b.ToTable("QuestionRubricCriteria");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Criterion).IsRequired().HasMaxLength(500);
+            b.Property(x => x.MaxPoints).HasPrecision(8, 2).IsRequired();
+
+            b.HasIndex(x => x.VersionId).HasDatabaseName("IX_QuestionRubricCriteria_VersionId");
+        });
+
+        // ---------- QuestionTestCase ----------------------------------------
+        modelBuilder.Entity<QuestionTestCase>(b =>
+        {
+            b.ToTable("QuestionTestCases");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Input).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.ExpectedOutput).IsRequired().HasColumnType("nvarchar(max)");
+
+            b.HasIndex(x => x.VersionId).HasDatabaseName("IX_QuestionTestCases_VersionId");
+        });
+
+        // ---------- QuestionAsset -------------------------------------------
+        modelBuilder.Entity<QuestionAsset>(b =>
+        {
+            b.ToTable("QuestionAssets");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => x.QuestionId).HasDatabaseName("IX_QuestionAssets_QuestionId");
+            b.HasIndex(x => x.FileAssetId).HasDatabaseName("IX_QuestionAssets_FileAssetId");
         });
 
         // ---------- QuestionExposureLog -------------------------------------
@@ -911,10 +1050,11 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.ToTable("QuestionExposureLogs");
             b.HasKey(x => x.Id);
             b.Property(x => x.Id).ValueGeneratedOnAdd();
-            b.HasIndex(x => new { x.QuestionId, x.InstituteId })
-             .HasDatabaseName("IX_QuestionExposureLogs_QuestionId_InstituteId");
-            b.HasIndex(x => x.PaperId)
-             .HasDatabaseName("IX_QuestionExposureLogs_PaperId");
+
+            b.Property(x => x.ExposedAtUtc).IsRequired();
+
+            b.HasIndex(x => x.QuestionId).HasDatabaseName("IX_QuestionExposureLogs_QuestionId");
+            b.HasIndex(x => new { x.InstituteId, x.ExposedAtUtc }).HasDatabaseName("IX_QuestionExposureLogs_InstituteId_ExposedAtUtc");
         });
 
         // ===== Soft-delete global query filter convention ==================
