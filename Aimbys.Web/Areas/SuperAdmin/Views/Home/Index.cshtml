@@ -1,0 +1,36 @@
+@{
+    ViewData["Title"] = "Super Admin";
+}
+
+@*
+    Reached via /SuperAdmin after sign-in. Stub landing for the
+    platform-support console; real tooling (institute approvals, audit
+    viewer, system health) ships in later chunks. The post-login
+    redirector (Aimbys.Web.Identity.RoleHomeRedirector) sends every
+    SuperAdmin sign-in here.
+*@
+
+<section class="container">
+    <nav aria-label="breadcrumb" class="small mb-2">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item">
+                <a class="text-decoration-none" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Super Admin</li>
+        </ol>
+    </nav>
+
+    <div class="bg-body rounded shadow-sm border p-4 p-md-5">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <h1 class="h3 fw-bold mb-0">Super Admin console</h1>
+            <span class="badge text-bg-primary">SuperAdmin</span>
+        </div>
+        <p class="text-secondary mb-0">
+            Welcome, <strong>@User.Identity?.Name</strong>. Platform tooling
+            &mdash; institute approvals, audit-log viewer, system health,
+            tenant management &mdash; ships in upcoming chunks. This page
+            exists so the post-login redirect from Chunk&nbsp;14 has a
+            target and so role authorization can be verified end-to-end.
+        </p>
+    </div>
+</section>

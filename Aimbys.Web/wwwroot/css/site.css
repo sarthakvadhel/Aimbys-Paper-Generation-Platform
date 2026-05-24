@@ -145,3 +145,160 @@ body {
     .aimbys-feature-card { transition: none; }
     .aimbys-feature-card:hover { transform: none; }
 }
+
+
+/* ============================================================ *
+ *  PARAKH role-pick landing (Chunk 14)
+ *
+ *  Re-creates the React `LandingPage.tsx` split layout with
+ *  Bootstrap utilities + a small CSS surface. Two panels: a dark
+ *  hero on the left (lg+) and a light credentials form on the
+ *  right; on screens below `lg` the hero is hidden and the form
+ *  rides solo with a compact mobile brand strip on top.
+ * ============================================================ */
+
+.aimbys-landing {
+    display: flex;
+    flex: 1;
+    min-height: 100vh;
+    background: #f0f4f8;
+}
+
+.aimbys-landing__hero {
+    width: 52%;
+    background: #0d1b2e;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+.aimbys-landing__hero-tag {
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    color: #60a5fa;
+    background: rgba(29, 78, 216, 0.12);
+    font-size: 0.7rem;
+}
+
+.aimbys-landing__hero-title {
+    font-size: clamp(1.75rem, 2.8vw, 2.4rem);
+    font-weight: 900;
+}
+
+.aimbys-landing__hero-accent {
+    color: #60a5fa;
+}
+
+.aimbys-landing__stat {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.aimbys-landing__check {
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.aimbys-landing__form {
+    flex: 1;
+}
+
+.aimbys-landing__mobile-brand {
+    background: #0d1b2e;
+}
+
+.aimbys-landing__password .btn {
+    /* Compact eye-toggle that aligns with the password input height. */
+    border-color: var(--bs-border-color);
+    color: var(--bs-secondary-color);
+}
+
+/* ---- Role tiles --------------------------------------------- */
+
+.aimbys-role-tile {
+    cursor: pointer;
+    border-color: var(--bs-border-color);
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.aimbys-role-tile:hover {
+    border-color: #94a3b8;
+}
+
+.aimbys-role-tile--active {
+    border-color: var(--bs-primary);
+    background: rgba(29, 78, 216, 0.06);
+}
+
+.aimbys-role-tile--active .aimbys-role-tile__label {
+    color: var(--bs-primary);
+}
+
+.aimbys-role-tile__icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.25rem;
+    background: #e2e8f0;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.aimbys-role-tile--active .aimbys-role-tile__icon {
+    background: var(--bs-primary);
+    color: #fff;
+}
+
+.aimbys-role-tile__chevron {
+    opacity: 0;
+    transform: translateX(-0.25rem);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.aimbys-role-tile--active .aimbys-role-tile__chevron {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* ---- Accent overrides driven by the active tile.
+ *
+ *  The React reference renders each tile in a different colour; we
+ *  expose those four palettes via `data-aimbys-accent` so the form
+ *  CTA picks up the same accent without per-role markup. */
+
+html[data-aimbys-accent="violet"] {
+    --bs-primary: #7c3aed;
+    --bs-primary-rgb: 124, 58, 237;
+    --bs-link-color: #7c3aed;
+}
+
+html[data-aimbys-accent="blue"] {
+    --bs-primary: #1d4ed8;
+    --bs-primary-rgb: 29, 78, 216;
+    --bs-link-color: #1d4ed8;
+}
+
+html[data-aimbys-accent="sky"] {
+    --bs-primary: #0369a1;
+    --bs-primary-rgb: 3, 105, 161;
+    --bs-link-color: #0369a1;
+}
+
+html[data-aimbys-accent="green"] {
+    --bs-primary: #15803d;
+    --bs-primary-rgb: 21, 128, 61;
+    --bs-link-color: #15803d;
+}
+
+/* ---- Responsive collapse ----------------------------------- */
+
+@media (max-width: 991.98px) {
+    .aimbys-landing {
+        flex-direction: column;
+    }
+
+    .aimbys-landing__hero {
+        width: 100%;
+    }
+}
