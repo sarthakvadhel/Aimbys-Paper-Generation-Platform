@@ -2,6 +2,7 @@ using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Notifications;
+using Aimbys.Domain.Entities.Questions;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
@@ -73,6 +74,13 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Domain.Entities.Stream> Streams => Set<Domain.Entities.Stream>();
     public DbSet<Major> Majors => Set<Major>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
+
+    // ----- Question approval workflow (Chunk 21) ---------------------------
+    public DbSet<Question> Questions => Set<Question>();
+    public DbSet<QuestionVersion> QuestionVersions => Set<QuestionVersion>();
+    public DbSet<QuestionReview> QuestionReviews => Set<QuestionReview>();
+    public DbSet<QuestionApproval> QuestionApprovals => Set<QuestionApproval>();
+    public DbSet<QuestionModeration> QuestionModerations => Set<QuestionModeration>();
 
     // ----- Notification hardening + audit visibility (Chunk 13) ----------
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
@@ -870,6 +878,75 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 21 — question approval workflow ============================
+
+        // ---------- Question ------------------------------------------------
+        modelBuilder.Entity<Question>(b =>
+        {
+            b.ToTable("Questions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
+
+            b.HasMany(x => x.Versions)
+             .WithOne(v => v.Question)
+             .HasForeignKey(v => v.QuestionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.InstituteId, x.SubjectId, x.Status })
+             .HasDatabaseName("IX_Questions_InstituteId_SubjectId_Status");
+            b.HasIndex(x => x.AuthorUserId)
+             .HasDatabaseName("IX_Questions_AuthorUserId");
+        });
+
+        // ---------- QuestionVersion -----------------------------------------
+        modelBuilder.Entity<QuestionVersion>(b =>
+        {
+            b.ToTable("QuestionVersions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.Marks).IsRequired();
+            b.Property(x => x.DifficultyTag).HasMaxLength(50);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => new { x.QuestionId, x.VersionNumber })
+             .IsUnique()
+             .HasDatabaseName("UX_QuestionVersions_QuestionId_VersionNumber");
+        });
+
+        // ---------- QuestionReview ------------------------------------------
+        modelBuilder.Entity<QuestionReview>(b =>
+        {
+            b.ToTable("QuestionReviews");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Verdict).HasConversion<int>().IsRequired();
+            b.Property(x => x.Comment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.ReviewerTeacherProfileId, x.Verdict }).HasDatabaseName("IX_QuestionReviews_ReviewerTeacherProfileId_Verdict");
+            b.HasIndex(x => x.QuestionId).HasDatabaseName("IX_QuestionReviews_QuestionId");
+        });
+
+        // ---------- QuestionApproval ----------------------------------------
+        modelBuilder.Entity<QuestionApproval>(b =>
+        {
+            b.ToTable("QuestionApprovals");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ApprovedByUserId).HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.RejectionComment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.QuestionId, x.WorkflowInstanceId }).IsUnique().HasDatabaseName("UX_QuestionApprovals_QuestionId_WorkflowInstanceId");
+        });
+
+        // ---------- QuestionModeration --------------------------------------
+        modelBuilder.Entity<QuestionModeration>(b =>
+        {
+            b.ToTable("QuestionModerations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.FinalVerdict).HasConversion<int>().IsRequired();
+            b.Property(x => x.Comment).HasMaxLength(2000);
+            b.HasIndex(x => new { x.ModeratorTeacherProfileId, x.CompletedAtUtc }).HasDatabaseName("IX_QuestionModerations_ModeratorTeacherProfileId_CompletedAtUtc");
         });
 
         // ===== Soft-delete global query filter convention ==================

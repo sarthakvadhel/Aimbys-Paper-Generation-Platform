@@ -7,6 +7,7 @@ using Aimbys.Application.DocumentRendering;
 using Aimbys.Application.Institutes;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
+using Aimbys.Application.Questions;
 using Aimbys.Application.Scheduling;
 using Aimbys.Application.SoftDelete;
 using Aimbys.Application.Workflow;
@@ -225,6 +226,9 @@ public static class DependencyInjection
         services.AddScoped<IOrgTreeService, OrgTreeService>();
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
+
+        // ----- Question lifecycle (Chunk 21) ----------------------------
+        services.AddScoped<IQuestionLifecycleService, Aimbys.Infrastructure.Questions.QuestionLifecycleService>();
 
         return services;
     }
