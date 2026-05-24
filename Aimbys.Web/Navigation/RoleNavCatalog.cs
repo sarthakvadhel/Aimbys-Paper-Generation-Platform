@@ -91,7 +91,7 @@ public static class RoleNavCatalog
         new RoleNavSection("Academic", new[]
         {
             new RoleNavLink("Paper Management", "Index", "Papers",        "Institute", "file-earmark-text"),
-            new RoleNavLink("Question Bank",    "Index", "QuestionBank",  "Institute", "book"),
+            new RoleNavLink("Question Bank",    "Index", "Questions",  "Institute", "book", IsImplemented: true),
             new RoleNavLink("Exam Calendar",    "Index", "Calendar",      "Institute", "calendar"),
         }),
         new RoleNavSection("Workflow", new[]
@@ -112,7 +112,7 @@ public static class RoleNavCatalog
         {
             new RoleNavLink("Paper Generation",  "Index", "PaperGen",      "Teacher", "file-earmark-text"),
             new RoleNavLink("Blueprints",        "Index", "Blueprints",    "Teacher", "book"),
-            new RoleNavLink("Question Bank",     "Index", "QuestionBank",  "Teacher", "book"),
+            new RoleNavLink("Question Bank",     "Index", "Questions",  "Teacher", "book", IsImplemented: true),
         }),
         new RoleNavSection("Assessment", new[]
         {
