@@ -1,6 +1,7 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Exams;
 using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
@@ -82,6 +83,11 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Exam runtime (Chunk 25) ------------------------------------------
+    public DbSet<Exam> Exams => Set<Exam>();
+    public DbSet<ExamAttempt> ExamAttempts => Set<ExamAttempt>();
+    public DbSet<ExamAttemptAnswer> ExamAttemptAnswers => Set<ExamAttemptAnswer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -870,6 +876,42 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 25 — exam scheduling + student attempt runtime ============
+
+        // ---------- Exam (Chunk 25) -----------------------------------------
+        modelBuilder.Entity<Exam>(b =>
+        {
+            b.ToTable("Exams");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Title).IsRequired().HasMaxLength(500);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.ScheduledByUserId).IsRequired().HasMaxLength(450);
+            b.HasMany(x => x.Attempts).WithOne(a => a.Exam).HasForeignKey(a => a.ExamId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => new { x.InstituteId, x.Status }).HasDatabaseName("IX_Exams_InstituteId_Status");
+            b.HasIndex(x => x.ClassBatchId).HasDatabaseName("IX_Exams_ClassBatchId");
+        });
+
+        // ---------- ExamAttempt (Chunk 25) ----------------------------------
+        modelBuilder.Entity<ExamAttempt>(b =>
+        {
+            b.ToTable("ExamAttempts");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.TotalAutoScore).HasPrecision(7, 2);
+            b.HasMany(x => x.Answers).WithOne(a => a.Attempt).HasForeignKey(a => a.AttemptId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => new { x.ExamId, x.StudentProfileId }).IsUnique().HasDatabaseName("UX_ExamAttempts_ExamId_StudentProfileId");
+        });
+
+        // ---------- ExamAttemptAnswer (Chunk 25) ----------------------------
+        modelBuilder.Entity<ExamAttemptAnswer>(b =>
+        {
+            b.ToTable("ExamAttemptAnswers");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.AnswerJson).HasColumnType("nvarchar(max)");
+            b.Property(x => x.AutoMarksAwarded).HasPrecision(5, 2);
+            b.HasIndex(x => new { x.AttemptId, x.QuestionId }).IsUnique().HasDatabaseName("UX_ExamAttemptAnswers_AttemptId_QuestionId");
         });
 
         // ===== Soft-delete global query filter convention ==================

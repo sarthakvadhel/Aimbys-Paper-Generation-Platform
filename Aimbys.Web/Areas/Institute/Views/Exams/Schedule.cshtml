@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "Schedule Exam";
+    var classBatches = ViewBag.ClassBatches as List<Aimbys.Domain.Entities.ClassBatch> ?? new();
+}
+
+<div class="container py-4" style="max-width: 720px;">
+    <h4 class="mb-3">Schedule Exam</h4>
+
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @error
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form asp-action="Schedule" method="post">
+                <div class="mb-3">
+                    <label for="title" class="form-label">Exam Title</label>
+                    <input type="text" class="form-control" id="title" name="title" required maxlength="500" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="paperVersionId" class="form-label">Paper Version ID</label>
+                    <input type="text" class="form-control" id="paperVersionId" name="paperVersionId"
+                           placeholder="GUID of the paper version" required />
+                </div>
+
+                <div class="mb-3">
+                    <label for="classBatchId" class="form-label">Class Batch</label>
+                    <select class="form-select" id="classBatchId" name="classBatchId" required>
+                        <option value="">-- Select --</option>
+                        @foreach (var cb in classBatches)
+                        {
+                            <option value="@cb.Id">@cb.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="scheduledAtUtc" class="form-label">Scheduled At (UTC)</label>
+                        <input type="datetime-local" class="form-control" id="scheduledAtUtc" name="scheduledAtUtc" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label for="durationMinutes" class="form-label">Duration (minutes)</label>
+                        <input type="number" class="form-control" id="durationMinutes" name="durationMinutes"
+                               min="5" max="600" value="60" required />
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Schedule Exam</button>
+                    <a asp-action="Calendar" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
