@@ -1,4 +1,5 @@
 using Aimbys.Infrastructure.Identity;
+using Aimbys.Web.Identity;
 using Aimbys.Web.ViewModels.Account;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -13,6 +14,13 @@ namespace Aimbys.Web.Controllers;
 /// </summary>
 public class AccountController : Controller
 {
+    /// <summary>
+    /// TempData key used to surface a flash message on the landing page
+    /// when an authenticated user has no canonical role assigned yet.
+    /// Picked up by <c>Views/Home/Index.cshtml</c>.
+    /// </summary>
+    public const string NoRoleFlashKey = "NoRoleFlash";
+
     private readonly UserManager<IdentityUser> _userManager;
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly ILogger<AccountController> _logger;
@@ -46,13 +54,18 @@ public class AccountController : Controller
             return View(model);
         }
 
+        // Rate-limiting on the login POST is a future hardening item
+        // (see Chunk 38 — "Login throttle / brute-force protection").
+        // The hook lives here so reviewers can find the right place
+        // when the time comes.
+
         var result = await _signInManager.PasswordSignInAsync(
             model.Email, model.Password, model.RememberMe, lockoutOnFailure: true);
 
         if (result.Succeeded)
         {
             _logger.LogInformation("User {Email} signed in.", model.Email);
-            return RedirectToLocal(model.ReturnUrl);
+            return await ResolvePostLoginRedirectAsync(model.Email, model.ReturnUrl);
         }
 
         if (result.IsLockedOut)
@@ -110,7 +123,7 @@ public class AccountController : Controller
         await _signInManager.SignInAsync(user, isPersistent: false);
         _logger.LogInformation("New user {Email} registered.", model.Email);
 
-        return RedirectToLocal(model.ReturnUrl);
+        return await ResolvePostLoginRedirectAsync(model.Email, model.ReturnUrl);
     }
 
     // ---------- Logout ---------------------------------------------------
@@ -137,12 +150,60 @@ public class AccountController : Controller
 
     // ---------- Helpers --------------------------------------------------
 
-    private IActionResult RedirectToLocal(string? returnUrl)
+    /// <summary>
+    /// Decides where to send the user after a successful sign-in:
+    ///
+    /// <list type="number">
+    ///   <item>If <paramref name="returnUrl"/> is a local URL, honour it
+    ///         (existing UX preserved: a deep-link followed by a login
+    ///         lands back on the deep-link).</item>
+    ///   <item>Otherwise route to the user's role home via
+    ///         <see cref="RoleHomeRedirector"/>.</item>
+    ///   <item>If the user has no canonical role yet, drop a TempData
+    ///         flash so the landing page can render the
+    ///         "no access" banner described in the spec.</item>
+    /// </list>
+    /// </summary>
+    private async Task<IActionResult> ResolvePostLoginRedirectAsync(string email, string? returnUrl)
     {
         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
         {
             return Redirect(returnUrl);
         }
-        return RedirectToAction(nameof(HomeController.Index), "Home");
+
+        // Fetch the user (already-signed-in HttpContext.User isn't yet
+        // populated on the same request — a SignInManager quirk).
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(HomeController.Index), "Home");
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var path = ResolveHomePathForRoles(roles);
+
+        if (path == RoleHomeRedirector.FallbackHome)
+        {
+            TempData[NoRoleFlashKey] =
+                "Your account doesn't have a workspace yet. Please ask your "
+              + "Institute Admin to assign a role.";
+        }
+
+        return Redirect(path);
+    }
+
+    /// <summary>
+    /// Mirrors <see cref="RoleHomeRedirector.GetHomePath"/> but operates
+    /// on the freshly-fetched role list rather than a
+    /// <see cref="System.Security.Claims.ClaimsPrincipal"/> &mdash; which
+    /// the post-login round-trip doesn't yet have.
+    /// </summary>
+    private static string ResolveHomePathForRoles(IList<string> roles)
+    {
+        if (roles.Contains(Roles.SuperAdmin))     return "/SuperAdmin";
+        if (roles.Contains(Roles.InstituteAdmin)) return "/Institute";
+        if (roles.Contains(Roles.Teacher))        return "/Teacher";
+        if (roles.Contains(Roles.Student))        return "/Student";
+        return RoleHomeRedirector.FallbackHome;
     }
 }

@@ -1,0 +1,35 @@
+@{
+    ViewData["Title"] = "Institute";
+}
+
+@*
+    Reached via /Institute after an Institute Administrator signs in.
+    Tenant-management features (departments, subjects, class batches,
+    teacher invites, dashboards) ship in later chunks; this stub
+    exists today so the post-login redirector has a target and the
+    SubscriptionEnforcementMiddleware path-prefix gate is exercised.
+*@
+
+<section class="container">
+    <nav aria-label="breadcrumb" class="small mb-2">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item">
+                <a class="text-decoration-none" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">Institute</li>
+        </ol>
+    </nav>
+
+    <div class="bg-body rounded shadow-sm border p-4 p-md-5">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <h1 class="h3 fw-bold mb-0">Institute administration</h1>
+            <span class="badge text-bg-primary">Institute Admin</span>
+        </div>
+        <p class="text-secondary mb-0">
+            Welcome, <strong>@User.Identity?.Name</strong>. Departments,
+            subjects, class batches, teacher invites, and the institute
+            dashboard ship in upcoming chunks. This page exists so the
+            post-login redirect from Chunk&nbsp;14 has a target.
+        </p>
+    </div>
+</section>
