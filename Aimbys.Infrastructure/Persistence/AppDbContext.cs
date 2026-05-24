@@ -2,6 +2,7 @@ using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Notifications;
+using Aimbys.Domain.Entities.Results;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
@@ -82,6 +83,12 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Result publication (Chunk 29) ------------------------------------
+    public DbSet<Result> Results => Set<Result>();
+    public DbSet<FinalPublishedScore> FinalPublishedScores => Set<FinalPublishedScore>();
+    public DbSet<ResultArchive> ResultArchives => Set<ResultArchive>();
+    public DbSet<ResultAppeal> ResultAppeals => Set<ResultAppeal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -870,6 +877,51 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 29 — result publication + appeals ========================
+
+        // ---------- Result --------------------------------------------------
+        modelBuilder.Entity<Result>(b =>
+        {
+            b.ToTable("Results");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TotalScore).HasPrecision(7, 2);
+            b.Property(x => x.MaxScore).HasPrecision(7, 2);
+            b.Property(x => x.Grade).HasMaxLength(10);
+            b.Property(x => x.PublishedByUserId).HasMaxLength(IdentityUserIdLength);
+            b.HasIndex(x => x.ExamAttemptId).IsUnique().HasDatabaseName("UX_Results_ExamAttemptId");
+        });
+
+        // ---------- FinalPublishedScore -------------------------------------
+        modelBuilder.Entity<FinalPublishedScore>(b =>
+        {
+            b.ToTable("FinalPublishedScores");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.PointsAwarded).HasPrecision(5, 2);
+            b.Property(x => x.MaxPoints).HasPrecision(5, 2);
+            b.Property(x => x.Source).HasConversion<int>().IsRequired();
+            b.HasIndex(x => new { x.ExamAttemptAnswerId, x.Version }).IsUnique().HasDatabaseName("UX_FinalPublishedScores_ExamAttemptAnswerId_Version");
+        });
+
+        // ---------- ResultArchive -------------------------------------------
+        modelBuilder.Entity<ResultArchive>(b =>
+        {
+            b.ToTable("ResultArchives");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ArchiveType).HasConversion<int>().IsRequired();
+            b.HasIndex(x => new { x.ExamId, x.ArchiveType }).HasDatabaseName("IX_ResultArchives_ExamId_ArchiveType");
+        });
+
+        // ---------- ResultAppeal --------------------------------------------
+        modelBuilder.Entity<ResultAppeal>(b =>
+        {
+            b.ToTable("ResultAppeals");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Reason).IsRequired().HasMaxLength(2000);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.HasIndex(x => new { x.ExamAttemptAnswerId, x.Status }).HasDatabaseName("IX_ResultAppeals_ExamAttemptAnswerId_Status");
+            b.HasIndex(x => x.StudentProfileId).HasDatabaseName("IX_ResultAppeals_StudentProfileId");
         });
 
         // ===== Soft-delete global query filter convention ==================

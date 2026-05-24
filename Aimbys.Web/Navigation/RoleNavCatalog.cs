@@ -97,7 +97,7 @@ public static class RoleNavCatalog
         new RoleNavSection("Workflow", new[]
         {
             new RoleNavLink("Approvals",        "Index", "Approvals",     "Institute", "check-square"),
-            new RoleNavLink("Analytics",        "Index", "Analytics",     "Institute", "graph-up"),
+            new RoleNavLink("Analytics",        "Index", "Analytics",     "Institute", "graph-up", IsImplemented: true),
             new RoleNavLink("Settings",         "Index", "Settings",      "Institute", "gear", IsImplemented: true),
         }),
     };
@@ -128,7 +128,7 @@ public static class RoleNavCatalog
         {
             new RoleNavLink("Dashboard",     "Index", "Home",       "Student", "speedometer", IsImplemented: true),
             new RoleNavLink("My Exams",      "Index", "Exams",      "Student", "book"),
-            new RoleNavLink("Results",       "Index", "Results",    "Student", "file-earmark-text"),
+            new RoleNavLink("Results",       "Index", "Results",    "Student", "file-earmark-text", IsImplemented: true),
             new RoleNavLink("My Analytics",  "Index", "Analytics",  "Student", "graph-up"),
         }),
     };

@@ -7,6 +7,7 @@ using Aimbys.Application.DocumentRendering;
 using Aimbys.Application.Institutes;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
+using Aimbys.Application.Results;
 using Aimbys.Application.Scheduling;
 using Aimbys.Application.SoftDelete;
 using Aimbys.Application.Workflow;
@@ -22,6 +23,7 @@ using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Institutes;
 using Aimbys.Infrastructure.Notifications;
 using Aimbys.Infrastructure.Persistence;
+using Aimbys.Infrastructure.Results;
 using Aimbys.Infrastructure.Retention;
 using Aimbys.Infrastructure.Scheduling;
 using Aimbys.Infrastructure.SoftDelete;
@@ -225,6 +227,10 @@ public static class DependencyInjection
         services.AddScoped<IOrgTreeService, OrgTreeService>();
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
+
+        // ----- Result publication + appeals (Chunk 29) ------------------
+        services.AddScoped<IResultPublicationService, ResultPublicationService>();
+        services.AddScoped<IAppealService, AppealService>();
 
         return services;
     }
