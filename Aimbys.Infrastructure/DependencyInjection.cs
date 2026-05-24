@@ -7,6 +7,7 @@ using Aimbys.Application.Configuration;
 using Aimbys.Application.DocumentRendering;
 using Aimbys.Application.Exams;
 using Aimbys.Application.Institutes;
+using Aimbys.Application.Moderation;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
 using Aimbys.Application.Questions;
