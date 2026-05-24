@@ -1,4 +1,5 @@
 using Aimbys.Domain.Enums;
+using Aimbys.Domain.SoftDelete;
 
 namespace Aimbys.Domain.Entities;
 
@@ -15,7 +16,7 @@ namespace Aimbys.Domain.Entities;
 /// controller can set <c>Content-Disposition: attachment; filename=...</c>.
 /// </para>
 /// </summary>
-public class FileAsset
+public class FileAsset : IRestoreable
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -69,4 +70,14 @@ public class FileAsset
     public bool IsDeleted { get; set; }
 
     public DateTime? DeletedAtUtc { get; set; }
+
+    /// <summary>
+    /// Identity user id of the actor that soft-deleted the asset.
+    /// Required by <see cref="IRestoreable"/>; populated by
+    /// <c>ISoftDeleteService.DeleteAsync</c> in Chunk 12+.
+    /// </summary>
+    public string? DeletedByUserId { get; set; }
+
+    /// <summary>UTC instant of the most recent restore (null on first delete).</summary>
+    public DateTime? RestoredAtUtc { get; set; }
 }

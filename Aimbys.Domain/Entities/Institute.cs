@@ -1,4 +1,5 @@
 using Aimbys.Domain.Enums;
+using Aimbys.Domain.SoftDelete;
 
 namespace Aimbys.Domain.Entities;
 
@@ -9,7 +10,7 @@ namespace Aimbys.Domain.Entities;
 /// <c>InstituteId</c> so a single SQL Server database can host many
 /// institutes with strict isolation enforced at the application layer.
 /// </summary>
-public class Institute
+public class Institute : IRestoreable
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -57,8 +58,38 @@ public class Institute
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 
+    // ----- ISoftDelete / IRestoreable (Chunk 12) ------------------------
+
     /// <summary>Soft-delete flag. Hard-delete is reserved for super-admin governance.</summary>
     public bool IsDeleted { get; set; }
+
+    /// <summary>UTC instant of soft-delete (null while live).</summary>
+    public DateTime? DeletedAtUtc { get; set; }
+
+    /// <summary>Identity user id of the actor that soft-deleted the row.</summary>
+    public string? DeletedByUserId { get; set; }
+
+    /// <summary>UTC instant of the most recent restore (null on first delete).</summary>
+    public DateTime? RestoredAtUtc { get; set; }
+
+    // ----- Subscription / license lifecycle (Chunk 12) ------------------
+
+    /// <summary>
+    /// Coarse subscription state used by
+    /// <see cref="Aimbys.Domain.Enums.InstituteSubscriptionStatus"/> to
+    /// gate access in <c>SubscriptionEnforcementMiddleware</c>. Distinct
+    /// from <see cref="Status"/> (which tracks SuperAdmin governance).
+    /// Defaults to Trial so a freshly-onboarded institute can start
+    /// using the platform without an active subscription record.
+    /// </summary>
+    public InstituteSubscriptionStatus SubscriptionStatus { get; set; } = InstituteSubscriptionStatus.Trial;
+
+    /// <summary>
+    /// UTC instant the current subscription expires. Compared against
+    /// <c>DateTime.UtcNow</c> by the enforcement middleware. Null means
+    /// "no explicit expiry" (typical for Trial / GracePeriod).
+    /// </summary>
+    public DateTime? SubscriptionExpiresAtUtc { get; set; }
 
     // Navigation
     public ICollection<Department> Departments { get; set; } = new List<Department>();

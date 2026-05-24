@@ -1,6 +1,9 @@
+using Aimbys.Application.Scheduling;
 using Aimbys.Infrastructure;
 using Aimbys.Infrastructure.Identity;
+using Aimbys.Infrastructure.Retention;
 using Aimbys.Infrastructure.Storage;
+using Aimbys.Web.Middleware;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -55,6 +58,11 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Subscription enforcement runs after auth so we know who the user is and
+// can resolve their tenant. Placed before route mapping so a blocked tenant
+// short-circuits to the suspension page instead of executing controller code.
+app.UseSubscriptionEnforcement();
+
 app.MapStaticAssets();
 
 // Areas first so {area:exists} wins over the default route for /Admin/*.
@@ -83,6 +91,28 @@ using (var scope = app.Services.CreateScope())
     }
 
     await IdentitySeeder.SeedAsync(scope.ServiceProvider);
+
+    // Register the recurring retention-enforcement job. Idempotent &mdash;
+    // ScheduleRecurringAsync upserts on JobKey, so restarts don't multiply
+    // rows. Wrapped in a try/catch so a transient DB outage doesn't take
+    // the host down; SchedulingHostedService logs that the job is missing
+    // until the next successful registration on a later restart.
+    try
+    {
+        var scheduler = scope.ServiceProvider.GetRequiredService<ISchedulingService>();
+        await scheduler.ScheduleRecurringAsync(
+            RetentionEnforcementJobHandler.Key,
+            RetentionEnforcementJobHandler.DefaultCron);
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Aimbys.Web.Bootstrap");
+        logger.LogWarning(ex,
+            "Failed to register the recurring retention-enforcement job at startup. "
+          + "It will be retried on the next restart.");
+    }
 }
 
 app.Run();

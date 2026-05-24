@@ -1,15 +1,26 @@
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Audit;
+using Aimbys.Application.Bulk;
+using Aimbys.Application.Configuration;
+using Aimbys.Application.DocumentRendering;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
+using Aimbys.Application.Scheduling;
+using Aimbys.Application.SoftDelete;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
 using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;
+using Aimbys.Infrastructure.Bulk;
+using Aimbys.Infrastructure.Configuration;
+using Aimbys.Infrastructure.DocumentRendering;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Notifications;
 using Aimbys.Infrastructure.Persistence;
+using Aimbys.Infrastructure.Retention;
+using Aimbys.Infrastructure.Scheduling;
+using Aimbys.Infrastructure.SoftDelete;
 using Aimbys.Infrastructure.Storage;
 using Aimbys.Infrastructure.Workflow;
 using Microsoft.AspNetCore.Identity;
@@ -150,6 +161,42 @@ public static class DependencyInjection
         services.AddSingleton<IWorkflowDefinitionRegistry, WorkflowDefinitionRegistry>();
         services.AddScoped<IWorkflowService, WorkflowEngine>();
         services.AddScoped<IWorkflowEscalationService, WorkflowEscalationService>();
+
+        // ----- Enterprise infrastructure (Chunk 12) ---------------------
+        // IMemoryCache is the backing store for IConfigurationService's
+        // 5-minute read cache. AddMemoryCache is idempotent so calling
+        // it from multiple composition roots is safe.
+        services.AddMemoryCache();
+
+        // Soft-delete: ISoftDeleteService scoped to the request unit-of-work.
+        services.AddScoped<ISoftDeleteService, SoftDeleteService>();
+
+        // Scheduling: SchedulingService is scoped (uses AppDbContext);
+        // SchedulingHostedService runs as a singleton BackgroundService
+        // and creates per-tick scopes itself.
+        services.AddScoped<ISchedulingService, SchedulingService>();
+        services.AddHostedService<SchedulingHostedService>();
+
+        // Each IScheduledJobHandler is scoped (consumes AppDbContext +
+        // IAuditWriter). Resolved by JobKey at dispatch time inside the
+        // hosted service's per-tick scope.
+        services.AddScoped<IScheduledJobHandler, RetentionEnforcementJobHandler>();
+
+        // Document rendering: stub HTML-to-PDF converter; production
+        // deployments replace it with a real adapter (Puppeteer,
+        // wkhtmltopdf, QuestPDF) without touching the consumer.
+        services.AddScoped<IHtmlToPdfConverter, LoggingHtmlToPdfConverter>();
+        services.AddScoped<IDocumentRenderService, DocumentRenderService>();
+
+        // Bulk operations: full impls of ImportStudentsAsync /
+        // ActivateDeactivateBulkAsync / NotifyBulkAsync ship in V1; the
+        // remaining methods are stubs until their underlying aggregates
+        // (Exam, Result, Paper) land.
+        services.AddScoped<IBulkOperationService, BulkOperationService>();
+
+        // Central configuration: cached behind IMemoryCache; writes
+        // invalidate the matching cache key.
+        services.AddScoped<IConfigurationService, ConfigurationService>();
 
         return services;
     }
