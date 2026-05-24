@@ -2,6 +2,7 @@ using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Notifications;
+using Aimbys.Domain.Entities.Questions;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
@@ -73,6 +74,11 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Domain.Entities.Stream> Streams => Set<Domain.Entities.Stream>();
     public DbSet<Major> Majors => Set<Major>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
+
+    // ----- Question analytics (Chunk 22) -----------------------------------
+    public DbSet<QuestionUsageAnalytics> QuestionUsageAnalytics => Set<QuestionUsageAnalytics>();
+    public DbSet<QuestionDifficultyAudit> QuestionDifficultyAudits => Set<QuestionDifficultyAudit>();
+    public DbSet<QuestionExposureLog> QuestionExposureLogs => Set<QuestionExposureLog>();
 
     // ----- Notification hardening + audit visibility (Chunk 13) ----------
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
@@ -870,6 +876,45 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 22 — question analytics + difficulty audit + exposure ===
+
+        // ---------- QuestionUsageAnalytics ----------------------------------
+        modelBuilder.Entity<QuestionUsageAnalytics>(b =>
+        {
+            b.ToTable("QuestionUsageAnalytics");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.PValue).HasPrecision(5, 4);
+            b.Property(x => x.DiscriminationIndex).HasPrecision(5, 4);
+            b.HasIndex(x => new { x.QuestionId, x.AcademicYearId })
+             .IsUnique()
+             .HasDatabaseName("UX_QuestionUsageAnalytics_QuestionId_AcademicYearId");
+        });
+
+        // ---------- QuestionDifficultyAudit ---------------------------------
+        modelBuilder.Entity<QuestionDifficultyAudit>(b =>
+        {
+            b.ToTable("QuestionDifficultyAudits");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.AuthoredDifficulty).HasConversion<int>().IsRequired();
+            b.Property(x => x.ComputedDifficulty).HasConversion<int>().IsRequired();
+            b.Property(x => x.DriftDirection).HasConversion<int>().IsRequired();
+            b.Property(x => x.ConfidencePercent).HasPrecision(5, 2);
+            b.HasIndex(x => new { x.QuestionId, x.ComputedAtUtc })
+             .HasDatabaseName("IX_QuestionDifficultyAudits_QuestionId_ComputedAtUtc");
+        });
+
+        // ---------- QuestionExposureLog -------------------------------------
+        modelBuilder.Entity<QuestionExposureLog>(b =>
+        {
+            b.ToTable("QuestionExposureLogs");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).ValueGeneratedOnAdd();
+            b.HasIndex(x => new { x.QuestionId, x.InstituteId })
+             .HasDatabaseName("IX_QuestionExposureLogs_QuestionId_InstituteId");
+            b.HasIndex(x => x.PaperId)
+             .HasDatabaseName("IX_QuestionExposureLogs_PaperId");
         });
 
         // ===== Soft-delete global query filter convention ==================
