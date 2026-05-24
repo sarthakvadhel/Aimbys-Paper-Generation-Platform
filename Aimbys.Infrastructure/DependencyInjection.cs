@@ -230,6 +230,8 @@ public static class DependencyInjection
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
 
+        // ----- Question lifecycle (Chunk 21) ----------------------------
+        services.AddScoped<IQuestionLifecycleService, Aimbys.Infrastructure.Questions.QuestionLifecycleService>();
         // ----- Question authoring (Chunk 20) ----------------------------
         services.AddScoped<IQuestionAuthoringService, QuestionAuthoringService>();
         // ----- User management (Chunk 19) -------------------------------

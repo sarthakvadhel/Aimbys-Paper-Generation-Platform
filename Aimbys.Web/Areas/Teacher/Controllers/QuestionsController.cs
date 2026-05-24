@@ -1,4 +1,7 @@
 using Aimbys.Application.Questions;
+using Aimbys.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Aimbys.Application.Storage;
 using Aimbys.Domain.Entities.Questions;
 using Aimbys.Domain.Enums;
@@ -16,6 +19,11 @@ namespace Aimbys.Web.Areas.Teacher.Controllers;
 [Authorize(Roles = Roles.Teacher)]
 public class QuestionsController : Controller
 {
+    private readonly IQuestionLifecycleService _lifecycle;
+
+    public QuestionsController(IQuestionLifecycleService lifecycle)
+    {
+        _lifecycle = lifecycle;
     private readonly IQuestionAuthoringService _authoring;
     private readonly AppDbContext _db;
     private readonly UserManager<IdentityUser> _userManager;
@@ -80,6 +88,17 @@ public class QuestionsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Submit(Guid id, CancellationToken ct)
+    {
+        var result = await _lifecycle.SubmitForReviewAsync(id, User, ct);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage;
+            return RedirectToAction("Index", "Home");
+        }
+
+        TempData["Success"] = "Question submitted for review.";
+        return RedirectToAction("Index", "Home");
     public async Task<IActionResult> Create(QuestionCreateViewModel model, CancellationToken ct)
     {
         if (!ModelState.IsValid)

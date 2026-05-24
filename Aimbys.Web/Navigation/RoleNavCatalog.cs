@@ -96,7 +96,7 @@ public static class RoleNavCatalog
         }),
         new RoleNavSection("Workflow", new[]
         {
-            new RoleNavLink("Approvals",        "Index", "Approvals",     "Institute", "check-square"),
+            new RoleNavLink("Approvals",        "Index", "Approvals",     "Institute", "check-square", IsImplemented: true),
             new RoleNavLink("Analytics",        "Index", "Analytics",     "Institute", "graph-up"),
             new RoleNavLink("Settings",         "Index", "Settings",      "Institute", "gear", IsImplemented: true),
         }),

@@ -1,5 +1,9 @@
 namespace Aimbys.Domain.Enums;
 
+/// <summary>
+/// Lifecycle states for a <c>Question</c>. Mirrors the states declared
+/// in the <c>QuestionApproval</c> workflow definition.
+/// </summary>
 public enum QuestionStatus
 {
     Draft = 0,
