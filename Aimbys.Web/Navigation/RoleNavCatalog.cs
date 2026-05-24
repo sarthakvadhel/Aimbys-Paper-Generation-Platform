@@ -127,7 +127,7 @@ public static class RoleNavCatalog
         new RoleNavSection("Main", new[]
         {
             new RoleNavLink("Dashboard",     "Index", "Home",       "Student", "speedometer", IsImplemented: true),
-            new RoleNavLink("My Exams",      "Index", "Exams",      "Student", "book"),
+            new RoleNavLink("My Exams",      "Index", "Exams",      "Student", "book", IsImplemented: true),
             new RoleNavLink("Results",       "Index", "Results",    "Student", "file-earmark-text"),
             new RoleNavLink("My Analytics",  "Index", "Analytics",  "Student", "graph-up"),
         }),

@@ -1,5 +1,6 @@
 using Aimbys.Application.Scheduling;
 using Aimbys.Infrastructure;
+using Aimbys.Infrastructure.Exams;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Questions;
 using Aimbys.Infrastructure.Retention;
