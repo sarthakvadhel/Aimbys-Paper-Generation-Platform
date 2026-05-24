@@ -4,6 +4,7 @@ using Aimbys.Application.Audit;
 using Aimbys.Application.Bulk;
 using Aimbys.Application.Configuration;
 using Aimbys.Application.DocumentRendering;
+using Aimbys.Application.Evaluation;
 using Aimbys.Application.Institutes;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
@@ -18,6 +19,7 @@ using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Bulk;
 using Aimbys.Infrastructure.Configuration;
 using Aimbys.Infrastructure.DocumentRendering;
+using Aimbys.Infrastructure.Evaluation;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Institutes;
 using Aimbys.Infrastructure.Notifications;
@@ -225,6 +227,10 @@ public static class DependencyInjection
         services.AddScoped<IOrgTreeService, OrgTreeService>();
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
+
+        // ----- Evaluation desk (Chunk 27) -------------------------------
+        services.AddScoped<IEvaluationAssignmentService, EvaluationAssignmentService>();
+        services.AddScoped<IEvaluationService, EvaluationService>();
 
         return services;
     }

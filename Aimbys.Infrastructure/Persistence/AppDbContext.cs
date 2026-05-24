@@ -1,6 +1,7 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Evaluation;
 using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
@@ -82,6 +83,13 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Evaluation desk (Chunk 27) --------------------------------------
+    public DbSet<ScoringScheme> ScoringSchemes => Set<ScoringScheme>();
+    public DbSet<Domain.Entities.Evaluation.Evaluation> Evaluations => Set<Domain.Entities.Evaluation.Evaluation>();
+    public DbSet<RubricScore> RubricScores => Set<RubricScore>();
+    public DbSet<DraftScore> DraftScores => Set<DraftScore>();
+    public DbSet<EvaluatedScore> EvaluatedScores => Set<EvaluatedScore>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -870,6 +878,68 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 27 — evaluation desk ====================================
+
+        // ---------- ScoringScheme -------------------------------------------
+        modelBuilder.Entity<ScoringScheme>(b =>
+        {
+            b.ToTable("ScoringSchemes");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.CriteriaJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.HasIndex(x => new { x.PaperVersionId, x.QuestionId })
+             .IsUnique()
+             .HasDatabaseName("UX_ScoringSchemes_PaperVersionId_QuestionId");
+        });
+
+        // ---------- Evaluation ----------------------------------------------
+        modelBuilder.Entity<Domain.Entities.Evaluation.Evaluation>(b =>
+        {
+            b.ToTable("Evaluations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.Feedback).HasColumnType("nvarchar(max)");
+            b.HasIndex(x => new { x.EvaluatorTeacherProfileId, x.Status })
+             .HasDatabaseName("IX_Evaluations_EvaluatorTeacherProfileId_Status");
+            b.HasIndex(x => x.AttemptAnswerId)
+             .HasDatabaseName("IX_Evaluations_AttemptAnswerId");
+        });
+
+        // ---------- RubricScore ---------------------------------------------
+        modelBuilder.Entity<RubricScore>(b =>
+        {
+            b.ToTable("RubricScores");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.PointsAwarded).HasPrecision(5, 2);
+            b.Property(x => x.MaxPoints).HasPrecision(5, 2);
+            b.HasIndex(x => new { x.EvaluationId, x.CriterionIndex })
+             .IsUnique()
+             .HasDatabaseName("UX_RubricScores_EvaluationId_CriterionIndex");
+        });
+
+        // ---------- DraftScore ----------------------------------------------
+        modelBuilder.Entity<DraftScore>(b =>
+        {
+            b.ToTable("DraftScores");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.PointsAwarded).HasPrecision(5, 2);
+            b.HasIndex(x => new { x.EvaluationId, x.CriterionIndex })
+             .IsUnique()
+             .HasDatabaseName("UX_DraftScores_EvaluationId_CriterionIndex");
+        });
+
+        // ---------- EvaluatedScore ------------------------------------------
+        modelBuilder.Entity<EvaluatedScore>(b =>
+        {
+            b.ToTable("EvaluatedScores");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TotalPointsAwarded).HasPrecision(7, 2);
+            b.Property(x => x.MaxPointsPossible).HasPrecision(7, 2);
+            b.Property(x => x.Feedback).HasColumnType("nvarchar(max)");
+            b.Property(x => x.EvaluatedByUserId).IsRequired().HasMaxLength(450);
+            b.HasIndex(x => x.EvaluationId)
+             .HasDatabaseName("IX_EvaluatedScores_EvaluationId");
         });
 
         // ===== Soft-delete global query filter convention ==================
