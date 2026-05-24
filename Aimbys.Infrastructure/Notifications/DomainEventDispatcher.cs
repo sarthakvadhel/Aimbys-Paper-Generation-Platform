@@ -7,27 +7,40 @@ using Microsoft.Extensions.Logging;
 namespace Aimbys.Infrastructure.Notifications;
 
 /// <summary>
-/// Default dispatcher: for each event, resolves its
+/// Dispatcher: for each event, resolves its
 /// <see cref="INotificationProjection{TEvent}"/> from DI, projects
-/// notifications, persists them, then fans out to all registered
-/// <see cref="INotificationChannel"/>s.
+/// notifications, then fans out to every registered
+/// <see cref="INotificationChannel"/> after applying per-user
+/// preference filtering.
+///
+/// <para>
+/// In Chunk 13 the explicit "always persist" call to
+/// <see cref="INotificationService.CreateBatchAsync"/> moves into
+/// <see cref="InAppNotificationChannel"/>, so a user who opts out of
+/// the in-app channel actually doesn't see rows in their inbox &mdash;
+/// the row is dropped at the channel boundary, not stored-and-hidden.
+/// Direct callers of <c>INotificationService.CreateBatchAsync</c>
+/// (e.g. <c>WorkflowEscalationService</c>) bypass the channel
+/// pipeline by design: system-level escalations are not subject to
+/// user preferences.
+/// </para>
 /// </summary>
 public class DomainEventDispatcher : IDomainEventDispatcher
 {
     private readonly IServiceProvider _services;
-    private readonly INotificationService _notificationService;
     private readonly IEnumerable<INotificationChannel> _channels;
+    private readonly INotificationPreferenceService _preferences;
     private readonly ILogger<DomainEventDispatcher> _logger;
 
     public DomainEventDispatcher(
         IServiceProvider services,
-        INotificationService notificationService,
         IEnumerable<INotificationChannel> channels,
+        INotificationPreferenceService preferences,
         ILogger<DomainEventDispatcher> logger)
     {
         _services = services;
-        _notificationService = notificationService;
         _channels = channels;
+        _preferences = preferences;
         _logger = logger;
     }
 
@@ -57,19 +70,49 @@ public class DomainEventDispatcher : IDomainEventDispatcher
 
         if (allNotifications.Count == 0) return;
 
-        await _notificationService.CreateBatchAsync(allNotifications, cancellationToken);
-
+        // Per-channel preference filter, then deliver. The InApp channel
+        // performs the DB persistence so opt-outs actually mean "no row
+        // in the inbox" rather than "stored but hidden from view".
         foreach (var channel in _channels)
         {
+            var allowed = new List<Notification>(allNotifications.Count);
+
+            foreach (var n in allNotifications)
+            {
+                bool shouldDeliver;
+                try
+                {
+                    shouldDeliver = await _preferences.ShouldDeliverAsync(
+                        n.RecipientUserId, channel.Key, n.Severity, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    // Preference lookup must never block delivery; on
+                    // failure we default to delivering so a degraded
+                    // preference store doesn't silently drop messages.
+                    _logger.LogWarning(ex,
+                        "Preference lookup failed for user {UserId} channel {Channel}; defaulting to deliver.",
+                        n.RecipientUserId, channel.Key);
+                    shouldDeliver = true;
+                }
+
+                if (shouldDeliver)
+                {
+                    allowed.Add(n);
+                }
+            }
+
+            if (allowed.Count == 0) continue;
+
             try
             {
-                await channel.DeliverAsync(allNotifications, cancellationToken);
+                await channel.DeliverAsync(allowed, cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,
-                    "Notification channel {Channel} failed. Notifications are persisted; delivery will retry on next read.",
-                    channel.GetType().Name);
+                    "Notification channel {Channel} failed; remaining channels continue.",
+                    channel.Key);
             }
         }
     }
