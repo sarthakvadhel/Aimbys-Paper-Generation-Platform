@@ -1,6 +1,7 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Moderation;
 using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
@@ -82,6 +83,11 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Moderation desk (Chunk 28) ---------------------------------------
+    public DbSet<Domain.Entities.Moderation.Moderation> ModerationRecords => Set<Domain.Entities.Moderation.Moderation>();
+    public DbSet<ModeratedScore> ModeratedScores => Set<ModeratedScore>();
+    public DbSet<ModerationSnapshot> ModerationSnapshots => Set<ModerationSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -870,6 +876,48 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 28 — moderation desk =====================================
+
+        // ---------- Moderation (Chunk 28) -----------------------------------
+        modelBuilder.Entity<Domain.Entities.Moderation.Moderation>(b =>
+        {
+            b.ToTable("Moderations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Verdict).HasConversion<int>().IsRequired();
+            b.Property(x => x.Comment).HasMaxLength(2000);
+            b.Property(x => x.OverrideReason).HasMaxLength(2000);
+            b.HasIndex(x => new { x.ModeratorTeacherProfileId, x.Verdict })
+             .HasDatabaseName("IX_Moderations_ModeratorTeacherProfileId_Verdict");
+            b.HasIndex(x => x.EvaluationId)
+             .HasDatabaseName("IX_Moderations_EvaluationId");
+        });
+
+        // ---------- ModeratedScore (Chunk 28) -------------------------------
+        modelBuilder.Entity<ModeratedScore>(b =>
+        {
+            b.ToTable("ModeratedScores");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TotalPointsAwarded).HasPrecision(7, 2);
+            b.Property(x => x.MaxPointsPossible).HasPrecision(7, 2);
+            b.Property(x => x.ModeratedByUserId).IsRequired().HasMaxLength(450);
+            b.Property(x => x.OverrideReason).HasMaxLength(2000);
+            b.HasIndex(x => x.EvaluationId)
+             .HasDatabaseName("IX_ModeratedScores_EvaluationId");
+            b.HasIndex(x => x.ModerationId)
+             .HasDatabaseName("IX_ModeratedScores_ModerationId");
+        });
+
+        // ---------- ModerationSnapshot (Chunk 28) ---------------------------
+        modelBuilder.Entity<ModerationSnapshot>(b =>
+        {
+            b.ToTable("ModerationSnapshots");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.EvaluatorScoresJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.HasIndex(x => x.ModerationId)
+             .IsUnique()
+             .HasDatabaseName("UX_ModerationSnapshots_ModerationId");
         });
 
         // ===== Soft-delete global query filter convention ==================

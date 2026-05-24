@@ -5,6 +5,7 @@ using Aimbys.Application.Bulk;
 using Aimbys.Application.Configuration;
 using Aimbys.Application.DocumentRendering;
 using Aimbys.Application.Institutes;
+using Aimbys.Application.Moderation;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
 using Aimbys.Application.Scheduling;
@@ -225,6 +226,9 @@ public static class DependencyInjection
         services.AddScoped<IOrgTreeService, OrgTreeService>();
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
+
+        // ----- Moderation desk (Chunk 28) -------------------------------
+        services.AddScoped<IModerationService, Aimbys.Infrastructure.Moderation.ModerationService>();
 
         return services;
     }
