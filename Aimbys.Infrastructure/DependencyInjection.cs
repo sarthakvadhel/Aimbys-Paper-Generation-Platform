@@ -25,6 +25,7 @@ using Aimbys.Infrastructure.DocumentRendering;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Institutes;
 using Aimbys.Infrastructure.Notifications;
+using Aimbys.Infrastructure.Papers;
 using Aimbys.Infrastructure.Persistence;
 using Aimbys.Infrastructure.Questions;
 using Aimbys.Infrastructure.Retention;

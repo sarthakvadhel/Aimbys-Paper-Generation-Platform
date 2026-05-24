@@ -1,0 +1,60 @@
+@model Aimbys.Domain.Entities.Papers.Paper
+@{
+    ViewData["Title"] = "Paper Preview";
+    Layout = null;
+    var currentVersion = Model.Versions.FirstOrDefault(v => v.Id == Model.CurrentVersionId);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>@(currentVersion?.Title ?? "Paper Preview")</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 1rem; margin-bottom: 2rem; }
+        .header h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        .meta { display: flex; justify-content: space-between; margin-bottom: 2rem; font-size: 0.9rem; }
+        .section-header { background: #f0f0f0; padding: 0.5rem 1rem; font-weight: bold; margin: 1.5rem 0 0.5rem; }
+        .question { padding: 0.5rem 0; border-bottom: 1px dotted #ccc; }
+        .marks { float: right; font-weight: bold; }
+        @@media print { body { margin: 0; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 1rem;">
+        <button onclick="window.print()" style="padding: 0.5rem 1rem; cursor: pointer;">Print</button>
+        <a href="javascript:history.back()" style="margin-left: 0.5rem;">Back</a>
+    </div>
+
+    <div class="header">
+        <h1>@(currentVersion?.Title ?? "Untitled Paper")</h1>
+    </div>
+
+    <div class="meta">
+        <span>Total Marks: <strong>@(currentVersion?.TotalMarks ?? 0)</strong></span>
+        <span>Duration: <strong>@(currentVersion?.DurationMinutes ?? 0) minutes</strong></span>
+    </div>
+
+    @if (currentVersion != null)
+    {
+        foreach (var sec in currentVersion.Sections.OrderBy(s => s.SortOrder))
+        {
+            <div class="section-header">@sec.Name <span class="marks">[@sec.Marks marks]</span></div>
+            var secQuestions = currentVersion.Questions.Where(q => q.SectionId == sec.Id).OrderBy(q => q.SortOrder);
+            var qNum = 1;
+            foreach (var q in secQuestions)
+            {
+                <div class="question">
+                    <span class="marks">@(q.MarksOverride?.ToString("0.##") ?? "—") marks</span>
+                    Q@(qNum). [Question @q.QuestionId.ToString()[..8]...]
+                </div>
+                qNum++;
+            }
+            if (!secQuestions.Any())
+            {
+                <p style="color: #999; font-style: italic;">No questions in this section.</p>
+            }
+        }
+    }
+</body>
+</html>
