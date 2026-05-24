@@ -3,6 +3,7 @@ using Aimbys.Application.Audit;
 using Aimbys.Application.Bulk;
 using Aimbys.Application.Configuration;
 using Aimbys.Application.DocumentRendering;
+using Aimbys.Application.Institutes;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
 using Aimbys.Application.Scheduling;
@@ -16,6 +17,7 @@ using Aimbys.Infrastructure.Bulk;
 using Aimbys.Infrastructure.Configuration;
 using Aimbys.Infrastructure.DocumentRendering;
 using Aimbys.Infrastructure.Identity;
+using Aimbys.Infrastructure.Institutes;
 using Aimbys.Infrastructure.Notifications;
 using Aimbys.Infrastructure.Persistence;
 using Aimbys.Infrastructure.Retention;
@@ -216,6 +218,9 @@ public static class DependencyInjection
         // (future) audit viewer; cached behind IMemoryCache for the
         // rule set.
         services.AddScoped<IAuditVisibilityService, Aimbys.Infrastructure.Audit.AuditVisibilityService>();
+
+        // ----- Institute onboarding (Chunk 17) --------------------------
+        services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
 
         return services;
     }
