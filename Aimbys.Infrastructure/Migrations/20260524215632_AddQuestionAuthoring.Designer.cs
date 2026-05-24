@@ -4,6 +4,7 @@ using Aimbys.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Aimbys.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260524215632_AddQuestionAuthoring")]
+    partial class AddQuestionAuthoring
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -891,10 +894,6 @@ namespace Aimbys.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("AuthorUserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
                     b.Property<Guid>("AuthorTeacherProfileId")
                         .HasColumnType("uniqueidentifier");
 
@@ -924,11 +923,6 @@ namespace Aimbys.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AuthorUserId")
-                        .HasDatabaseName("IX_Questions_AuthorUserId");
-
-                    b.HasIndex("InstituteId", "SubjectId", "Status")
-                        .HasDatabaseName("IX_Questions_InstituteId_SubjectId_Status");
                     b.HasIndex("AuthorTeacherProfileId")
                         .HasDatabaseName("IX_Questions_AuthorTeacherProfileId");
 
@@ -944,19 +938,12 @@ namespace Aimbys.Infrastructure.Migrations
                     b.ToTable("Questions", (string)null);
                 });
 
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionApproval", b =>
             modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionAsset", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime?>("ApprovedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ApprovedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -966,11 +953,6 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Property<Guid>("QuestionId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("RejectionComment")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<Guid>("WorkflowInstanceId")
                     b.HasKey("Id");
 
                     b.HasIndex("FileAssetId")
@@ -1004,14 +986,6 @@ namespace Aimbys.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QuestionId", "WorkflowInstanceId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_QuestionApprovals_QuestionId_WorkflowInstanceId");
-
-                    b.ToTable("QuestionApprovals", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionModeration", b =>
                     b.HasIndex("QuestionId")
                         .HasDatabaseName("IX_QuestionExposureLogs_QuestionId");
 
@@ -1027,23 +1001,6 @@ namespace Aimbys.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Comment")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("CompletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("FinalVerdict")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("ModeratorTeacherProfileId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("OriginalReviewId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("QuestionId")
                     b.Property<bool>("IsCorrect")
                         .HasColumnType("bit");
 
@@ -1064,13 +1021,6 @@ namespace Aimbys.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ModeratorTeacherProfileId", "CompletedAtUtc")
-                        .HasDatabaseName("IX_QuestionModerations_ModeratorTeacherProfileId_CompletedAtUtc");
-
-                    b.ToTable("QuestionModerations", (string)null);
-                });
-
-            modelBuilder.Entity("Aimbys.Domain.Entities.Questions.QuestionReview", b =>
                     b.HasIndex("VersionId")
                         .HasDatabaseName("IX_QuestionOptions_VersionId");
 
@@ -1083,37 +1033,6 @@ namespace Aimbys.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime>("AssignedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("CompletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("QuestionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("QuestionVersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ReviewerTeacherProfileId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Verdict")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuestionId")
-                        .HasDatabaseName("IX_QuestionReviews_QuestionId");
-
-                    b.HasIndex("ReviewerTeacherProfileId", "Verdict")
-                        .HasDatabaseName("IX_QuestionReviews_ReviewerTeacherProfileId_Verdict");
-
-                    b.ToTable("QuestionReviews", (string)null);
                     b.Property<string>("Criterion")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -1194,13 +1113,6 @@ namespace Aimbys.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("DifficultyTag")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("Marks")
-                        .HasColumnType("int");
 
                     b.Property<int>("Difficulty")
                         .HasColumnType("int");
