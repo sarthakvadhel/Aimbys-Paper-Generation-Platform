@@ -1,5 +1,7 @@
 using Aimbys.Domain.Entities;
+using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
@@ -66,6 +68,15 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<FeatureToggle> FeatureToggles => Set<FeatureToggle>();
     public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
     public DbSet<ArchivePolicy> ArchivePolicies => Set<ArchivePolicy>();
+
+    // ----- Notification hardening + audit visibility (Chunk 13) ----------
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+    public DbSet<NotificationTemplateTranslation> NotificationTemplateTranslations
+        => Set<NotificationTemplateTranslation>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+    public DbSet<NotificationChannelConfig> NotificationChannelConfigs
+        => Set<NotificationChannelConfig>();
+    public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -724,6 +735,99 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         modelBuilder.Entity<FileAsset>(b =>
         {
             b.Property(x => x.DeletedByUserId).HasMaxLength(IdentityUserIdLength);
+        });
+
+        // ===== Chunk 13 — notification hardening + audit visibility =========
+
+        // ---------- NotificationTemplate ------------------------------------
+        modelBuilder.Entity<NotificationTemplate>(b =>
+        {
+            b.ToTable("NotificationTemplates");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Key).IsRequired().HasMaxLength(120);
+            b.Property(x => x.TitleTemplate).IsRequired().HasMaxLength(500);
+            b.Property(x => x.BodyTemplate).HasColumnType("nvarchar(max)");
+            b.Property(x => x.DefaultRoutePattern).HasMaxLength(500);
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.DefaultSeverity).HasConversion<int>().IsRequired();
+            b.Property(x => x.IsActive).IsRequired();
+
+            b.HasMany(x => x.Translations)
+             .WithOne(t => t.Template)
+             .HasForeignKey(t => t.TemplateId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => x.Key)
+             .IsUnique()
+             .HasDatabaseName("UX_NotificationTemplates_Key");
+        });
+
+        // ---------- NotificationTemplateTranslation -------------------------
+        modelBuilder.Entity<NotificationTemplateTranslation>(b =>
+        {
+            b.ToTable("NotificationTemplateTranslations");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.LanguageCode).IsRequired().HasMaxLength(16);
+            b.Property(x => x.TitleTemplate).IsRequired().HasMaxLength(500);
+            b.Property(x => x.BodyTemplate).HasColumnType("nvarchar(max)");
+
+            b.HasIndex(x => new { x.TemplateId, x.LanguageCode })
+             .IsUnique()
+             .HasDatabaseName("UX_NotificationTemplateTranslations_TemplateId_LanguageCode");
+        });
+
+        // ---------- NotificationPreference ----------------------------------
+        modelBuilder.Entity<NotificationPreference>(b =>
+        {
+            b.ToTable("NotificationPreferences");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.UserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.ChannelKey).IsRequired().HasMaxLength(40);
+            b.Property(x => x.MinimumSeverity).HasConversion<int>().IsRequired();
+            b.Property(x => x.IsEnabled).IsRequired();
+
+            // Hot path for the dispatcher: lookup by (UserId, ChannelKey).
+            b.HasIndex(x => new { x.UserId, x.ChannelKey })
+             .IsUnique()
+             .HasDatabaseName("UX_NotificationPreferences_UserId_ChannelKey");
+        });
+
+        // ---------- NotificationChannelConfig -------------------------------
+        modelBuilder.Entity<NotificationChannelConfig>(b =>
+        {
+            b.ToTable("NotificationChannelConfigs");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.ChannelKey).IsRequired().HasMaxLength(40);
+            b.Property(x => x.DisplayName).IsRequired().HasMaxLength(120);
+            b.Property(x => x.ConfigJson).HasColumnType("nvarchar(max)");
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.IsEnabled).IsRequired();
+
+            b.HasIndex(x => x.ChannelKey)
+             .IsUnique()
+             .HasDatabaseName("UX_NotificationChannelConfigs_ChannelKey");
+        });
+
+        // ---------- AuditVisibilityRule -------------------------------------
+        modelBuilder.Entity<AuditVisibilityRule>(b =>
+        {
+            b.ToTable("AuditVisibilityRules");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.ActionPattern).IsRequired().HasMaxLength(120);
+            b.Property(x => x.VisibleToRolesJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.VisibleToPermissionsJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.MaskFieldsJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.RequiresComplianceMode).IsRequired();
+            b.Property(x => x.Description).HasMaxLength(1000);
+
+            b.HasIndex(x => x.ActionPattern)
+             .IsUnique()
+             .HasDatabaseName("UX_AuditVisibilityRules_ActionPattern");
         });
 
         // ===== Soft-delete global query filter convention ==================

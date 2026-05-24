@@ -111,7 +111,19 @@ public static class DependencyInjection
         services.AddScoped<Notifications.DomainEventCollector>();
         services.AddScoped<IDomainEventDispatcher, Notifications.DomainEventDispatcher>();
         services.AddScoped<INotificationService, Notifications.NotificationService>();
+
+        // ----- Notification channels (Chunk 13) -------------------------
+        // The in-app channel persists to the Notifications table and
+        // honours user preferences; the logging channel is a dev/staging
+        // catch-all kept from Chunk 10. Order matters only for the
+        // log output; the dispatcher fans out to every registered
+        // channel after applying user-preference filtering.
+        services.AddScoped<INotificationChannel, Notifications.InAppNotificationChannel>();
         services.AddSingleton<INotificationChannel, Notifications.LoggingNotificationChannel>();
+
+        // ----- Notification templates + preferences (Chunk 13) ----------
+        services.AddScoped<INotificationTemplateService, Notifications.NotificationTemplateService>();
+        services.AddScoped<INotificationPreferenceService, Notifications.NotificationPreferenceService>();
 
         // Register all 8 notification projections.
         services.AddScoped<INotificationProjection<PaperSubmittedEvent>, Projections.PaperSubmittedProjection>();
@@ -197,6 +209,13 @@ public static class DependencyInjection
         // Central configuration: cached behind IMemoryCache; writes
         // invalidate the matching cache key.
         services.AddScoped<IConfigurationService, ConfigurationService>();
+
+        // ----- Audit visibility (Chunk 13) ------------------------------
+        // Filters audit-log rows by role / permission / compliance gate
+        // and masks sensitive fields in DetailsJson. Called by the
+        // (future) audit viewer; cached behind IMemoryCache for the
+        // rule set.
+        services.AddScoped<IAuditVisibilityService, Aimbys.Infrastructure.Audit.AuditVisibilityService>();
 
         return services;
     }
