@@ -86,7 +86,7 @@ public static class RoleNavCatalog
         new RoleNavSection("Overview", new[]
         {
             new RoleNavLink("Dashboard",        "Index", "Home",          "Institute", "speedometer", IsImplemented: true),
-            new RoleNavLink("Users & Roles",    "Index", "Users",         "Institute", "people"),
+            new RoleNavLink("Users & Roles",    "Index", "Users",         "Institute", "people", IsImplemented: true),
         }),
         new RoleNavSection("Academic", new[]
         {

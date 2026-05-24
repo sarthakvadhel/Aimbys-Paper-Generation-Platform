@@ -10,6 +10,7 @@ using Aimbys.Application.Notifications.Projections;
 using Aimbys.Application.Questions;
 using Aimbys.Application.Scheduling;
 using Aimbys.Application.SoftDelete;
+using Aimbys.Application.Users;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
@@ -28,6 +29,7 @@ using Aimbys.Infrastructure.Retention;
 using Aimbys.Infrastructure.Scheduling;
 using Aimbys.Infrastructure.SoftDelete;
 using Aimbys.Infrastructure.Storage;
+using Aimbys.Infrastructure.Users;
 using Aimbys.Infrastructure.Workflow;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -230,6 +232,8 @@ public static class DependencyInjection
 
         // ----- Question authoring (Chunk 20) ----------------------------
         services.AddScoped<IQuestionAuthoringService, QuestionAuthoringService>();
+        // ----- User management (Chunk 19) -------------------------------
+        services.AddScoped<IUserManagementService, UserManagementService>();
 
         return services;
     }
