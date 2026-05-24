@@ -23,6 +23,12 @@ public class Subject
     /// <summary>Optional long-form description, max 2000.</summary>
     public string? Description { get; set; }
 
+    /// <summary>Optional stream the subject belongs to (Chunk 18).</summary>
+    public Guid? StreamId { get; set; }
+
+    /// <summary>Optional major the subject belongs to (Chunk 18).</summary>
+    public Guid? MajorId { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
@@ -31,4 +37,5 @@ public class Subject
     // Navigation
     public Institute? Institute { get; set; }
     public Department? Department { get; set; }
+    public ICollection<Chapter> Chapters { get; set; } = new List<Chapter>();
 }

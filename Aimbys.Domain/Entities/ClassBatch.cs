@@ -23,6 +23,9 @@ public class ClassBatch
     /// </summary>
     public string? GradeLevel { get; set; }
 
+    /// <summary>Optional stream the batch belongs to (Chunk 18).</summary>
+    public Guid? StreamId { get; set; }
+
     /// <summary>Optional class teacher assigned to this batch.</summary>
     public Guid? ClassTeacherProfileId { get; set; }
 

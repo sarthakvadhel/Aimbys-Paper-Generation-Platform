@@ -1,3 +1,4 @@
+using Aimbys.Application.OrgTree;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Audit;
 using Aimbys.Application.Bulk;
@@ -11,6 +12,7 @@ using Aimbys.Application.SoftDelete;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
+using Aimbys.Infrastructure.OrgTree;
 using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Bulk;
@@ -219,6 +221,8 @@ public static class DependencyInjection
         // rule set.
         services.AddScoped<IAuditVisibilityService, Aimbys.Infrastructure.Audit.AuditVisibilityService>();
 
+        // ----- Org tree (Chunk 18) --------------------------------------
+        services.AddScoped<IOrgTreeService, OrgTreeService>();
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
 

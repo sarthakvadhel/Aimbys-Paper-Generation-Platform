@@ -1,0 +1,27 @@
+@model IEnumerable<Aimbys.Domain.Entities.ClassBatch>
+@{
+    ViewData["Title"] = "Class Batches";
+    var tableModel = new Aimbys.Web.Models.UI.DataTableModel(
+        Caption: "Class Batches",
+        Columns: new[]
+        {
+            new Aimbys.Web.Models.UI.DataTableColumn("Name"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Grade Level"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Created"),
+            new Aimbys.Web.Models.UI.DataTableColumn("Actions", Aimbys.Web.Models.UI.DataTableAlign.End)
+        },
+        Rows: Model.Select(cb => new Aimbys.Web.Models.UI.DataTableRow(new Aimbys.Web.Models.UI.DataTableCell[]
+        {
+            new(cb.Name),
+            new(cb.GradeLevel ?? "—"),
+            new(cb.CreatedAtUtc.ToString("yyyy-MM-dd")),
+            new($"<a href=\"#\" class=\"btn btn-sm btn-outline-secondary\">Edit</a>", IsHtml: true)
+        })).ToList(),
+        EmptyMessage: "No class batches configured yet.");
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Class Batches</h4>
+</div>
+
+<partial name="_DataTable" model="tableModel" />
