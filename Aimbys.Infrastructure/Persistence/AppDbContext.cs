@@ -1,10 +1,12 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
+using Aimbys.Domain.Entities.Blueprints;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
+using Aimbys.Domain.Enums;
 using Aimbys.Domain.SoftDelete;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -82,6 +84,15 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Blueprint engine (Chunk 23) --------------------------------------
+    public DbSet<Competency> Competencies => Set<Competency>();
+    public DbSet<AssessmentDesign> AssessmentDesigns => Set<AssessmentDesign>();
+    public DbSet<Blueprint> Blueprints => Set<Blueprint>();
+    public DbSet<BlueprintVersion> BlueprintVersions => Set<BlueprintVersion>();
+    public DbSet<BlueprintSection> BlueprintSections => Set<BlueprintSection>();
+    public DbSet<BlueprintConstraint> BlueprintConstraints => Set<BlueprintConstraint>();
+    public DbSet<BlueprintCohort> BlueprintCohorts => Set<BlueprintCohort>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -870,6 +881,136 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 23 — blueprint engine + competency matrix ================
+
+        // ---------- Competency (self-referencing hierarchy) -----------------
+        modelBuilder.Entity<Competency>(b =>
+        {
+            b.ToTable("Competencies");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Code).HasMaxLength(50);
+            b.Property(x => x.SortOrder).IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
+            b.Property(x => x.DeletedByUserId).HasMaxLength(IdentityUserIdLength);
+
+            b.HasOne(x => x.Parent)
+             .WithMany(x => x.Children)
+             .HasForeignKey(x => x.ParentCompetencyId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_Competencies_InstituteId");
+            b.HasIndex(x => new { x.InstituteId, x.Code })
+             .IsUnique()
+             .HasFilter("[Code] IS NOT NULL AND [IsDeleted] = 0")
+             .HasDatabaseName("UX_Competencies_InstituteId_Code");
+        });
+
+        // ---------- AssessmentDesign ----------------------------------------
+        modelBuilder.Entity<AssessmentDesign>(b =>
+        {
+            b.ToTable("AssessmentDesigns");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.AssessmentType).HasConversion<int>().IsRequired();
+            b.Property(x => x.CreatedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_AssessmentDesigns_InstituteId");
+        });
+
+        // ---------- Blueprint -----------------------------------------------
+        modelBuilder.Entity<Blueprint>(b =>
+        {
+            b.ToTable("Blueprints");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(300);
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.UpdatedAtUtc).IsRequired();
+
+            b.HasMany(x => x.Versions)
+             .WithOne(v => v.Blueprint)
+             .HasForeignKey(v => v.BlueprintId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => x.InstituteId).HasDatabaseName("IX_Blueprints_InstituteId");
+            b.HasIndex(x => new { x.InstituteId, x.SubjectId })
+             .HasDatabaseName("IX_Blueprints_InstituteId_SubjectId");
+        });
+
+        // ---------- BlueprintVersion ----------------------------------------
+        modelBuilder.Entity<BlueprintVersion>(b =>
+        {
+            b.ToTable("BlueprintVersions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.VersionNumber).IsRequired();
+            b.Property(x => x.TotalMarks).IsRequired();
+            b.Property(x => x.DurationMinutes).IsRequired();
+            b.Property(x => x.SectionsJson).HasColumnType("nvarchar(max)");
+            b.Property(x => x.ConstraintsJson).HasColumnType("nvarchar(max)");
+            b.Property(x => x.CohortJson).HasColumnType("nvarchar(max)");
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasMany(x => x.Sections)
+             .WithOne(s => s.Version)
+             .HasForeignKey(s => s.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.Constraints)
+             .WithOne(c => c.Version)
+             .HasForeignKey(c => c.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.Cohorts)
+             .WithOne(c => c.Version)
+             .HasForeignKey(c => c.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.BlueprintId, x.VersionNumber })
+             .IsUnique()
+             .HasDatabaseName("UX_BlueprintVersions_BlueprintId_VersionNumber");
+        });
+
+        // ---------- BlueprintSection ----------------------------------------
+        modelBuilder.Entity<BlueprintSection>(b =>
+        {
+            b.ToTable("BlueprintSections");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            b.Property(x => x.Marks).IsRequired();
+            b.Property(x => x.QuestionCount).IsRequired();
+            b.Property(x => x.TypeMix).HasColumnType("nvarchar(max)");
+            b.Property(x => x.SortOrder).IsRequired();
+
+            b.HasIndex(x => x.VersionId).HasDatabaseName("IX_BlueprintSections_VersionId");
+        });
+
+        // ---------- BlueprintConstraint -------------------------------------
+        modelBuilder.Entity<BlueprintConstraint>(b =>
+        {
+            b.ToTable("BlueprintConstraints");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.DifficultyLevel).HasConversion<int>().IsRequired();
+            b.Property(x => x.QuestionType).HasConversion<int>().IsRequired();
+            b.Property(x => x.Marks).IsRequired();
+            b.Property(x => x.Count).IsRequired();
+
+            b.HasIndex(x => new { x.VersionId, x.ChapterId, x.CompetencyId, x.DifficultyLevel, x.QuestionType })
+             .HasDatabaseName("IX_BlueprintConstraints_Composite");
+        });
+
+        // ---------- BlueprintCohort -----------------------------------------
+        modelBuilder.Entity<BlueprintCohort>(b =>
+        {
+            b.ToTable("BlueprintCohorts");
+            b.HasKey(x => x.Id);
+
+            b.HasIndex(x => x.VersionId).HasDatabaseName("IX_BlueprintCohorts_VersionId");
         });
 
         // ===== Soft-delete global query filter convention ==================

@@ -111,7 +111,7 @@ public static class RoleNavCatalog
         new RoleNavSection("Authoring", new[]
         {
             new RoleNavLink("Paper Generation",  "Index", "PaperGen",      "Teacher", "file-earmark-text"),
-            new RoleNavLink("Blueprints",        "Index", "Blueprints",    "Teacher", "book"),
+            new RoleNavLink("Blueprints",        "Index", "Blueprints",    "Teacher", "book", IsImplemented: true),
             new RoleNavLink("Question Bank",     "Index", "QuestionBank",  "Teacher", "book"),
         }),
         new RoleNavSection("Assessment", new[]
