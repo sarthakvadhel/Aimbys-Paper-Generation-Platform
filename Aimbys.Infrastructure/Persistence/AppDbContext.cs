@@ -1,5 +1,9 @@
 using Aimbys.Domain.Entities;
+using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Retention;
+using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
+using Aimbys.Domain.SoftDelete;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +58,14 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<WorkflowEscalationRule> WorkflowEscalationRules => Set<WorkflowEscalationRule>();
     public DbSet<WorkflowDeadline> WorkflowDeadlines => Set<WorkflowDeadline>();
     public DbSet<WorkflowReminder> WorkflowReminders => Set<WorkflowReminder>();
+
+    // ----- Enterprise infrastructure (Chunk 12) -------------------------
+    public DbSet<ScheduledJob> ScheduledJobs => Set<ScheduledJob>();
+    public DbSet<PlatformSetting> PlatformSettings => Set<PlatformSetting>();
+    public DbSet<InstituteSetting> InstituteSettings => Set<InstituteSetting>();
+    public DbSet<FeatureToggle> FeatureToggles => Set<FeatureToggle>();
+    public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
+    public DbSet<ArchivePolicy> ArchivePolicies => Set<ArchivePolicy>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -585,5 +597,174 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasIndex(x => x.RecipientUserId)
              .HasDatabaseName("IX_WorkflowReminders_RecipientUserId");
         });
+
+        // ===== Chunk 12 — enterprise infrastructure ==========================
+
+        // ---------- ScheduledJob --------------------------------------------
+        modelBuilder.Entity<ScheduledJob>(b =>
+        {
+            b.ToTable("ScheduledJobs");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.JobKey).IsRequired().HasMaxLength(120);
+            b.Property(x => x.CronExpression).HasMaxLength(120);
+            b.Property(x => x.Payload).HasColumnType("nvarchar(max)");
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.NextRunAtUtc).IsRequired();
+            b.Property(x => x.MaxRetries).IsRequired();
+            b.Property(x => x.RetryCount).IsRequired();
+            b.Property(x => x.LastError).HasMaxLength(500);
+
+            // Hot path: dispatcher polls (Status, NextRunAtUtc).
+            b.HasIndex(x => new { x.Status, x.NextRunAtUtc })
+             .HasDatabaseName("IX_ScheduledJobs_Status_NextRunAtUtc");
+            b.HasIndex(x => x.JobKey)
+             .HasDatabaseName("IX_ScheduledJobs_JobKey");
+        });
+
+        // ---------- PlatformSetting -----------------------------------------
+        modelBuilder.Entity<PlatformSetting>(b =>
+        {
+            b.ToTable("PlatformSettings");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Key).IsRequired().HasMaxLength(200);
+            b.Property(x => x.ValueJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.UpdatedByUserId).HasMaxLength(IdentityUserIdLength);
+
+            b.HasIndex(x => x.Key)
+             .IsUnique()
+             .HasDatabaseName("UX_PlatformSettings_Key");
+        });
+
+        // ---------- InstituteSetting ----------------------------------------
+        modelBuilder.Entity<InstituteSetting>(b =>
+        {
+            b.ToTable("InstituteSettings");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Key).IsRequired().HasMaxLength(200);
+            b.Property(x => x.ValueJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.UpdatedByUserId).HasMaxLength(IdentityUserIdLength);
+
+            b.HasOne(x => x.Institute)
+             .WithMany()
+             .HasForeignKey(x => x.InstituteId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.InstituteId, x.Key })
+             .IsUnique()
+             .HasDatabaseName("UX_InstituteSettings_InstituteId_Key");
+        });
+
+        // ---------- FeatureToggle -------------------------------------------
+        modelBuilder.Entity<FeatureToggle>(b =>
+        {
+            b.ToTable("FeatureToggles");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Key).IsRequired().HasMaxLength(200);
+            b.Property(x => x.InstituteOverridesJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.UpdatedByUserId).HasMaxLength(IdentityUserIdLength);
+
+            b.HasIndex(x => x.Key)
+             .IsUnique()
+             .HasDatabaseName("UX_FeatureToggles_Key");
+        });
+
+        // ---------- RetentionPolicy -----------------------------------------
+        modelBuilder.Entity<RetentionPolicy>(b =>
+        {
+            b.ToTable("RetentionPolicies");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.EntityType).IsRequired().HasMaxLength(120);
+            b.Property(x => x.RetentionDays).IsRequired();
+            b.Property(x => x.ArchiveAfterDays).IsRequired();
+            b.Property(x => x.LegalHold).IsRequired();
+            b.Property(x => x.Description).HasMaxLength(1000);
+
+            b.HasIndex(x => x.EntityType)
+             .IsUnique()
+             .HasDatabaseName("UX_RetentionPolicies_EntityType");
+        });
+
+        // ---------- ArchivePolicy -------------------------------------------
+        modelBuilder.Entity<ArchivePolicy>(b =>
+        {
+            b.ToTable("ArchivePolicies");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.EntityType).IsRequired().HasMaxLength(120);
+            b.Property(x => x.Strategy).HasConversion<int>().IsRequired();
+            b.Property(x => x.Description).HasMaxLength(1000);
+
+            b.HasIndex(x => x.EntityType)
+             .IsUnique()
+             .HasDatabaseName("UX_ArchivePolicies_EntityType");
+        });
+
+        // ---------- Institute (Chunk 12 columns) ----------------------------
+        // The base Institute mapping above (Chunk 1) already configures the
+        // table; here we add the subscription-lifecycle columns shipped by
+        // Chunk 12. Splitting the calls keeps the diff localised.
+        modelBuilder.Entity<Institute>(b =>
+        {
+            b.Property(x => x.SubscriptionStatus).HasConversion<int>().IsRequired();
+            b.Property(x => x.DeletedByUserId).HasMaxLength(IdentityUserIdLength);
+
+            b.HasIndex(x => x.SubscriptionStatus)
+             .HasDatabaseName("IX_Institutes_SubscriptionStatus");
+        });
+
+        // ---------- FileAsset (Chunk 12 column) -----------------------------
+        modelBuilder.Entity<FileAsset>(b =>
+        {
+            b.Property(x => x.DeletedByUserId).HasMaxLength(IdentityUserIdLength);
+        });
+
+        // ===== Soft-delete global query filter convention ==================
+        //
+        // Every entity that implements ISoftDelete gets the same filter:
+        // queries return only live rows by default, and code that needs to
+        // see soft-deleted rows opts in with .IgnoreQueryFilters(). Doing
+        // it here (after individual configs) means new soft-deletable
+        // entities pick up the filter for free — no per-entity
+        // boilerplate to remember.
+        ApplySoftDeleteQueryFilters(modelBuilder);
+    }
+
+    /// <summary>
+    /// Applies <c>e =&gt; !e.IsDeleted</c> as a global query filter to
+    /// every entity type registered with the model that implements
+    /// <see cref="ISoftDelete"/>. Uses <c>EF.Property&lt;bool&gt;</c> so
+    /// the filter expression doesn't depend on a specific generic
+    /// closure for each entity.
+    /// </summary>
+    private static void ApplySoftDeleteQueryFilters(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (!typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType))
+            {
+                continue;
+            }
+
+            // Build: x => !EF.Property<bool>(x, "IsDeleted")
+            var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "x");
+            var efProperty = System.Linq.Expressions.Expression.Call(
+                method: typeof(Microsoft.EntityFrameworkCore.EF)
+                    .GetMethod(nameof(Microsoft.EntityFrameworkCore.EF.Property))!
+                    .MakeGenericMethod(typeof(bool)),
+                arg0: parameter,
+                arg1: System.Linq.Expressions.Expression.Constant("IsDeleted"));
+            var notDeleted = System.Linq.Expressions.Expression.Not(efProperty);
+            var filter = System.Linq.Expressions.Expression.Lambda(notDeleted, parameter);
+
+            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
+        }
     }
 }
