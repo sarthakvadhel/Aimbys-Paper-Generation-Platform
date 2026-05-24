@@ -1,4 +1,5 @@
 using Aimbys.Domain.Entities;
+using Aimbys.Domain.Entities.Workflow;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +42,18 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<FileAsset> FileAssets => Set<FileAsset>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    // ----- Workflow engine (Chunk 11) -----------------------------------
+    public DbSet<WorkflowDefinition> WorkflowDefinitions => Set<WorkflowDefinition>();
+    public DbSet<WorkflowInstance> WorkflowInstances => Set<WorkflowInstance>();
+    public DbSet<WorkflowTransition> WorkflowTransitions => Set<WorkflowTransition>();
+    public DbSet<ApprovalQueue> ApprovalQueues => Set<ApprovalQueue>();
+    public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
+    public DbSet<ReviewerAssignment> ReviewerAssignments => Set<ReviewerAssignment>();
+    public DbSet<ModerationQueue> ModerationQueues => Set<ModerationQueue>();
+    public DbSet<WorkflowEscalationRule> WorkflowEscalationRules => Set<WorkflowEscalationRule>();
+    public DbSet<WorkflowDeadline> WorkflowDeadlines => Set<WorkflowDeadline>();
+    public DbSet<WorkflowReminder> WorkflowReminders => Set<WorkflowReminder>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -362,6 +375,215 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
              .HasDatabaseName("IX_Notifications_RecipientUserId_IsRead_CreatedAtUtc");
             b.HasIndex(x => x.InstituteId)
              .HasDatabaseName("IX_Notifications_InstituteId");
+        });
+
+        // ---------- WorkflowDefinition (Chunk 11) ---------------------------
+        modelBuilder.Entity<WorkflowDefinition>(b =>
+        {
+            b.ToTable("WorkflowDefinitions");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Key).IsRequired().HasMaxLength(100);
+            b.Property(x => x.Version).IsRequired();
+            b.Property(x => x.Description).HasMaxLength(1000);
+            b.Property(x => x.StatesJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.TransitionsJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.EscalationRulesJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => new { x.Key, x.Version })
+             .IsUnique()
+             .HasDatabaseName("UX_WorkflowDefinitions_Key_Version");
+        });
+
+        // ---------- WorkflowInstance ----------------------------------------
+        modelBuilder.Entity<WorkflowInstance>(b =>
+        {
+            b.ToTable("WorkflowInstances");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.DefinitionKey).IsRequired().HasMaxLength(100);
+            b.Property(x => x.DefinitionVersion).IsRequired();
+            b.Property(x => x.SubjectType).IsRequired().HasMaxLength(100);
+            b.Property(x => x.CurrentState).IsRequired().HasMaxLength(100);
+            b.Property(x => x.StartedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.StartedAtUtc).IsRequired();
+
+            b.HasMany(x => x.Transitions)
+             .WithOne(t => t.Instance)
+             .HasForeignKey(t => t.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.DefinitionKey, x.SubjectType, x.SubjectId })
+             .HasDatabaseName("IX_WorkflowInstances_DefinitionKey_SubjectType_SubjectId");
+            b.HasIndex(x => new { x.SubjectType, x.SubjectId })
+             .HasDatabaseName("IX_WorkflowInstances_SubjectType_SubjectId");
+            b.HasIndex(x => new { x.IsCompleted, x.CurrentState })
+             .HasDatabaseName("IX_WorkflowInstances_IsCompleted_CurrentState");
+            b.HasIndex(x => x.InstituteId)
+             .HasDatabaseName("IX_WorkflowInstances_InstituteId");
+        });
+
+        // ---------- WorkflowTransition (append-only history) ----------------
+        modelBuilder.Entity<WorkflowTransition>(b =>
+        {
+            b.ToTable("WorkflowTransitions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).ValueGeneratedOnAdd();
+
+            b.Property(x => x.InstanceId).IsRequired();
+            b.Property(x => x.FromState).IsRequired().HasMaxLength(100);
+            b.Property(x => x.ToState).IsRequired().HasMaxLength(100);
+            b.Property(x => x.ActorUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.Comment).HasMaxLength(2000);
+            b.Property(x => x.TransitionedAtUtc).IsRequired();
+
+            b.HasIndex(x => new { x.InstanceId, x.TransitionedAtUtc })
+             .HasDatabaseName("IX_WorkflowTransitions_InstanceId_TransitionedAtUtc");
+        });
+
+        // ---------- ApprovalQueue -------------------------------------------
+        modelBuilder.Entity<ApprovalQueue>(b =>
+        {
+            b.ToTable("ApprovalQueues");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.InstanceId).IsRequired();
+            b.Property(x => x.DefinitionKey).IsRequired().HasMaxLength(100);
+            b.Property(x => x.QueueName).IsRequired().HasMaxLength(100);
+            b.Property(x => x.AssignedToUserId).HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.Priority).HasConversion<int>().IsRequired();
+            b.Property(x => x.EnqueuedAtUtc).IsRequired();
+
+            b.HasOne(x => x.Instance)
+             .WithMany()
+             .HasForeignKey(x => x.InstanceId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Inbox query: open items by (definition, queue, assignee, oldest first).
+            b.HasIndex(x => new { x.DefinitionKey, x.QueueName, x.AssignedToUserId, x.EnqueuedAtUtc })
+             .HasDatabaseName("IX_ApprovalQueues_DefinitionKey_QueueName_AssignedToUserId_EnqueuedAtUtc");
+            b.HasIndex(x => new { x.IsResolved, x.InstituteId })
+             .HasDatabaseName("IX_ApprovalQueues_IsResolved_InstituteId");
+            b.HasIndex(x => x.InstanceId)
+             .HasDatabaseName("IX_ApprovalQueues_InstanceId");
+        });
+
+        // ---------- TaskAssignment ------------------------------------------
+        modelBuilder.Entity<TaskAssignment>(b =>
+        {
+            b.ToTable("TaskAssignments");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.QueueItemId).IsRequired();
+            b.Property(x => x.AssignedToUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.AssignedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.AssignedAtUtc).IsRequired();
+
+            b.HasOne(x => x.QueueItem)
+             .WithMany()
+             .HasForeignKey(x => x.QueueItemId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(x => new { x.QueueItemId, x.IsActive })
+             .HasDatabaseName("IX_TaskAssignments_QueueItemId_IsActive");
+            b.HasIndex(x => new { x.AssignedToUserId, x.IsActive })
+             .HasDatabaseName("IX_TaskAssignments_AssignedToUserId_IsActive");
+        });
+
+        // ---------- ReviewerAssignment --------------------------------------
+        modelBuilder.Entity<ReviewerAssignment>(b =>
+        {
+            b.ToTable("ReviewerAssignments");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.SubjectType).IsRequired().HasMaxLength(100);
+            b.Property(x => x.ReviewerUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.AssignedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.AssignedAtUtc).IsRequired();
+
+            b.HasIndex(x => new { x.SubjectType, x.SubjectId })
+             .HasDatabaseName("IX_ReviewerAssignments_SubjectType_SubjectId");
+            b.HasIndex(x => new { x.ReviewerUserId, x.IsActive })
+             .HasDatabaseName("IX_ReviewerAssignments_ReviewerUserId_IsActive");
+            b.HasIndex(x => x.InstituteId)
+             .HasDatabaseName("IX_ReviewerAssignments_InstituteId");
+        });
+
+        // ---------- ModerationQueue -----------------------------------------
+        modelBuilder.Entity<ModerationQueue>(b =>
+        {
+            b.ToTable("ModerationQueues");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.EvaluationId).IsRequired();
+            b.Property(x => x.ModeratorUserId).HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.Priority).HasConversion<int>().IsRequired();
+            b.Property(x => x.EnqueuedAtUtc).IsRequired();
+
+            b.HasIndex(x => new { x.IsResolved, x.ModeratorUserId, x.EnqueuedAtUtc })
+             .HasDatabaseName("IX_ModerationQueues_IsResolved_ModeratorUserId_EnqueuedAtUtc");
+            b.HasIndex(x => x.InstituteId)
+             .HasDatabaseName("IX_ModerationQueues_InstituteId");
+            b.HasIndex(x => x.EvaluationId)
+             .HasDatabaseName("IX_ModerationQueues_EvaluationId");
+        });
+
+        // ---------- WorkflowEscalationRule ----------------------------------
+        modelBuilder.Entity<WorkflowEscalationRule>(b =>
+        {
+            b.ToTable("WorkflowEscalationRules");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.DefinitionKey).IsRequired().HasMaxLength(100);
+            b.Property(x => x.State).IsRequired().HasMaxLength(100);
+            b.Property(x => x.MaxDurationMinutes).IsRequired();
+            b.Property(x => x.ReminderAtPercent).IsRequired();
+            b.Property(x => x.EscalateToRole).HasMaxLength(100);
+            b.Property(x => x.EscalateToPermission).HasMaxLength(100);
+
+            b.HasIndex(x => new { x.DefinitionKey, x.State })
+             .IsUnique()
+             .HasDatabaseName("UX_WorkflowEscalationRules_DefinitionKey_State");
+        });
+
+        // ---------- WorkflowDeadline ----------------------------------------
+        modelBuilder.Entity<WorkflowDeadline>(b =>
+        {
+            b.ToTable("WorkflowDeadlines");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.InstanceId).IsRequired();
+            b.Property(x => x.State).IsRequired().HasMaxLength(100);
+            b.Property(x => x.DueAtUtc).IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            // The escalation job's hot path: scan rows that are
+            // still active and might be due.
+            b.HasIndex(x => new { x.IsResolved, x.IsOverdue, x.DueAtUtc })
+             .HasDatabaseName("IX_WorkflowDeadlines_IsResolved_IsOverdue_DueAtUtc");
+            b.HasIndex(x => x.InstanceId)
+             .HasDatabaseName("IX_WorkflowDeadlines_InstanceId");
+            b.HasIndex(x => x.InstituteId)
+             .HasDatabaseName("IX_WorkflowDeadlines_InstituteId");
+        });
+
+        // ---------- WorkflowReminder (audit row per dispatch) ---------------
+        modelBuilder.Entity<WorkflowReminder>(b =>
+        {
+            b.ToTable("WorkflowReminders");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).ValueGeneratedOnAdd();
+
+            b.Property(x => x.DeadlineId).IsRequired();
+            b.Property(x => x.RecipientUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.SentAtUtc).IsRequired();
+            b.Property(x => x.Channel).HasConversion<int>().IsRequired();
+
+            b.HasIndex(x => new { x.DeadlineId, x.SentAtUtc })
+             .HasDatabaseName("IX_WorkflowReminders_DeadlineId_SentAtUtc");
+            b.HasIndex(x => x.RecipientUserId)
+             .HasDatabaseName("IX_WorkflowReminders_RecipientUserId");
         });
     }
 }

@@ -1,13 +1,17 @@
 using Aimbys.Application.Authorization;
+using Aimbys.Application.Audit;
 using Aimbys.Application.Notifications;
 using Aimbys.Application.Notifications.Projections;
+using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
+using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Notifications;
 using Aimbys.Infrastructure.Persistence;
 using Aimbys.Infrastructure.Storage;
+using Aimbys.Infrastructure.Workflow;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -130,6 +134,22 @@ public static class DependencyInjection
         services.AddScoped<LocalFileStorageService>();
         services.AddScoped<ILocalFileStorageService>(sp => sp.GetRequiredService<LocalFileStorageService>());
         services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<LocalFileStorageService>());
+
+        // ----- Audit (Chunk 11) -----------------------------------------
+        // Single sanctioned route for writing AuditLog rows. Existing
+        // controllers that still call `_db.AuditLogs.Add(...)` directly
+        // will be migrated to this interface in follow-up chunks.
+        services.AddHttpContextAccessor();
+        services.AddScoped<IAuditWriter, AuditWriter>();
+
+        // ----- Workflow engine (Chunk 11) -------------------------------
+        // The definition registry is a Singleton: the embedded JSON specs
+        // are immutable for the lifetime of the process. The engine and
+        // escalation service are Scoped so they share the request-scoped
+        // AppDbContext and DomainEventCollector.
+        services.AddSingleton<IWorkflowDefinitionRegistry, WorkflowDefinitionRegistry>();
+        services.AddScoped<IWorkflowService, WorkflowEngine>();
+        services.AddScoped<IWorkflowEscalationService, WorkflowEscalationService>();
 
         return services;
     }
