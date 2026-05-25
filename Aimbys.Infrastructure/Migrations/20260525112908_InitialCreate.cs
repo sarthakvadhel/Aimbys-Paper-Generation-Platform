@@ -1607,7 +1607,7 @@ namespace Aimbys.Infrastructure.Migrations
                         column: x => x.VersionId,
                         principalTable: "PaperVersions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(

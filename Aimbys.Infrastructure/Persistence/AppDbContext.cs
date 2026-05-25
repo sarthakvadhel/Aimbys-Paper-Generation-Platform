@@ -1176,6 +1176,18 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.ToTable("PaperQuestions");
             b.HasKey(x => x.Id);
             b.Property(x => x.MarksOverride).HasPrecision(5, 2);
+
+            b.HasOne(x => x.Section)
+             .WithMany()
+             .HasForeignKey(x => x.SectionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict to avoid multiple cascade paths
+            // (PaperQuestion→PaperVersion AND PaperQuestion→PaperSection→PaperVersion)
+            b.HasOne(x => x.Version)
+             .WithMany()
+             .HasForeignKey(x => x.VersionId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<PublishedSnapshot>(b =>
