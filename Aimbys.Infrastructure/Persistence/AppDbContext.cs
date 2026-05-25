@@ -1,4 +1,5 @@
 using Aimbys.Domain.Entities;
+using Aimbys.Domain.Entities.Analytics;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Blueprints;
 using Aimbys.Domain.Entities.Configuration;
