@@ -1,6 +1,7 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Multilingual;
 using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
@@ -82,6 +83,11 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Multilingual (Chunk 32) ------------------------------------------
+    public DbSet<Language> Languages => Set<Language>();
+    public DbSet<QuestionTranslation> QuestionTranslations => Set<QuestionTranslation>();
+    public DbSet<PaperLanguageSet> PaperLanguageSets => Set<PaperLanguageSet>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -870,6 +876,39 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 32 — multilingual content ==================================
+
+        // ---------- Language (Chunk 32) -----------------------------------------
+        modelBuilder.Entity<Language>(b =>
+        {
+            b.ToTable("Languages");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Code).IsRequired().HasMaxLength(16);
+            b.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            b.HasIndex(x => new { x.InstituteId, x.Code }).IsUnique().HasDatabaseName("UX_Languages_InstituteId_Code");
+        });
+
+        // ---------- QuestionTranslation (Chunk 32) ------------------------------
+        modelBuilder.Entity<QuestionTranslation>(b =>
+        {
+            b.ToTable("QuestionTranslations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.InstructionsHtml).HasColumnType("nvarchar(max)");
+            b.Property(x => x.OptionsJson).HasColumnType("nvarchar(max)");
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.TranslatorUserId).IsRequired().HasMaxLength(450);
+            b.HasIndex(x => new { x.QuestionVersionId, x.LanguageId }).IsUnique().HasDatabaseName("UX_QuestionTranslations_QuestionVersionId_LanguageId");
+        });
+
+        // ---------- PaperLanguageSet (Chunk 32) ---------------------------------
+        modelBuilder.Entity<PaperLanguageSet>(b =>
+        {
+            b.ToTable("PaperLanguageSets");
+            b.HasKey(x => x.Id);
+            b.HasIndex(x => new { x.PaperVersionId, x.LanguageId }).IsUnique().HasDatabaseName("UX_PaperLanguageSets_PaperVersionId_LanguageId");
         });
 
         // ===== Soft-delete global query filter convention ==================

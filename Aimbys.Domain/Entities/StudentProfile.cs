@@ -29,6 +29,8 @@ public class StudentProfile
 
     public DateOnly? DateOfBirth { get; set; }
 
+    public Guid? PreferredLanguageId { get; set; }
+
     public ProfileStatus Status { get; set; } = ProfileStatus.Active;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

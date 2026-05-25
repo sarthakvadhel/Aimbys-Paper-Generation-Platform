@@ -1,3 +1,4 @@
+using Aimbys.Application.Multilingual;
 using Aimbys.Application.OrgTree;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Audit;
@@ -12,6 +13,7 @@ using Aimbys.Application.SoftDelete;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
+using Aimbys.Infrastructure.Multilingual;
 using Aimbys.Infrastructure.OrgTree;
 using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;
@@ -225,6 +227,9 @@ public static class DependencyInjection
         services.AddScoped<IOrgTreeService, OrgTreeService>();
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
+
+        // ----- Multilingual (Chunk 32) ----------------------------------
+        services.AddScoped<IMultilingualService, MultilingualService>();
 
         return services;
     }
