@@ -1,0 +1,140 @@
+@model Aimbys.Domain.Entities.Exams.ExamAttempt
+@{
+    ViewData["Title"] = Model.Exam?.Title ?? "Exam";
+    Layout = "~/Views/Shared/_LayoutExam.cshtml";
+    var remainingSeconds = (int)(ViewBag.RemainingSeconds ?? 0);
+}
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">@Model.Exam?.Title</h5>
+        <div class="d-flex align-items-center gap-3">
+            <span class="badge bg-danger fs-6" id="timer">--:--</span>
+            <form asp-action="Submit" method="post" class="d-inline" id="submitForm">
+                <input type="hidden" name="attemptId" value="@Model.Id" />
+                <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Are you sure you want to submit?')">
+                    Submit Exam
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <p class="text-muted">
+                Duration: @(Model.Exam?.DurationMinutes ?? 0) minutes |
+                Questions: @Model.Answers.Count |
+                Flagged: @Model.Answers.Count(a => a.IsFlagged)
+            </p>
+
+            @if (Model.Answers.Any())
+            {
+                <div class="list-group">
+                    @foreach (var answer in Model.Answers.OrderBy(a => a.QuestionId))
+                    {
+                        <div class="list-group-item" data-question-id="@answer.QuestionId">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>Question @answer.QuestionId.ToString()[..8]...</strong>
+                                    @if (answer.IsFlagged)
+                                    {
+                                        <span class="badge bg-warning ms-2">Flagged</span>
+                                    }
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-warning flag-btn"
+                                        data-attempt-id="@Model.Id"
+                                        data-question-id="@answer.QuestionId"
+                                        data-flagged="@(!answer.IsFlagged ? "true" : "false")">
+                                    @(answer.IsFlagged ? "Unflag" : "Flag")
+                                </button>
+                            </div>
+                            <div class="mt-2">
+                                <textarea class="form-control answer-input"
+                                          data-attempt-id="@Model.Id"
+                                          data-question-id="@answer.QuestionId"
+                                          rows="3"
+                                          placeholder="Type your answer...">@answer.AnswerJson</textarea>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">No questions loaded. The exam will be populated when questions are assigned to the paper version.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Timer countdown
+    (function () {
+        let remaining = @remainingSeconds;
+        const timerEl = document.getElementById('timer');
+
+        function updateTimer() {
+            if (remaining <= 0) {
+                timerEl.textContent = '00:00';
+                document.getElementById('submitForm').submit();
+                return;
+            }
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            timerEl.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+            remaining--;
+            setTimeout(updateTimer, 1000);
+        }
+        updateTimer();
+    })();
+
+    // Autosave on blur
+    document.querySelectorAll('.answer-input').forEach(el => {
+        let debounceTimer;
+        el.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => saveAnswer(el), 2000);
+        });
+        el.addEventListener('blur', function () {
+            clearTimeout(debounceTimer);
+            saveAnswer(el);
+        });
+    });
+
+    function saveAnswer(el) {
+        const attemptId = el.dataset.attemptId;
+        const questionId = el.dataset.questionId;
+        const answerJson = el.value;
+
+        fetch('@Url.Action("SaveAnswer", "Exams", new { area = "Student" })', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attemptId, questionId, answerJson })
+        }).then(resp => {
+            if (resp.status === 409) {
+                alert('Time expired! Your exam will be submitted automatically.');
+                document.getElementById('submitForm').submit();
+            }
+        });
+    }
+
+    // Flag button handler
+    document.querySelectorAll('.flag-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const attemptId = this.dataset.attemptId;
+            const questionId = this.dataset.questionId;
+            const flagged = this.dataset.flagged === 'true';
+
+            fetch('@Url.Action("Flag", "Exams", new { area = "Student" })', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ attemptId, questionId, flagged })
+            }).then(() => {
+                this.dataset.flagged = (!flagged).toString();
+                this.textContent = flagged ? 'Unflag' : 'Flag';
+            });
+        });
+    });
+</script>
+}

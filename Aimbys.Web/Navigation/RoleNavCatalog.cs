@@ -66,7 +66,7 @@ public static class RoleNavCatalog
         {
             new RoleNavLink("Dashboard",        "Index", "Home",        "SuperAdmin", "speedometer", IsImplemented: true),
             new RoleNavLink("Institutes",       "Index", "Institutes",  "SuperAdmin", "building", IsImplemented: true),
-            new RoleNavLink("Global Analytics", "Index", "Analytics",   "SuperAdmin", "graph-up"),
+            new RoleNavLink("Global Analytics", "Index", "Analytics",   "SuperAdmin", "graph-up", IsImplemented: true),
         }),
         new RoleNavSection("Management", new[]
         {
@@ -86,17 +86,17 @@ public static class RoleNavCatalog
         new RoleNavSection("Overview", new[]
         {
             new RoleNavLink("Dashboard",        "Index", "Home",          "Institute", "speedometer", IsImplemented: true),
-            new RoleNavLink("Users & Roles",    "Index", "Users",         "Institute", "people"),
+            new RoleNavLink("Users & Roles",    "Index", "Users",         "Institute", "people", IsImplemented: true),
         }),
         new RoleNavSection("Academic", new[]
         {
             new RoleNavLink("Paper Management", "Index", "Papers",        "Institute", "file-earmark-text"),
-            new RoleNavLink("Question Bank",    "Index", "QuestionBank",  "Institute", "book"),
+            new RoleNavLink("Question Bank",    "Index", "Questions",  "Institute", "book", IsImplemented: true),
             new RoleNavLink("Exam Calendar",    "Index", "Calendar",      "Institute", "calendar"),
         }),
         new RoleNavSection("Workflow", new[]
         {
-            new RoleNavLink("Approvals",        "Index", "Approvals",     "Institute", "check-square"),
+            new RoleNavLink("Approvals",        "Index", "Approvals",     "Institute", "check-square", IsImplemented: true),
             new RoleNavLink("Analytics",        "Index", "Analytics",     "Institute", "graph-up"),
             new RoleNavLink("Settings",         "Index", "Settings",      "Institute", "gear", IsImplemented: true),
         }),
@@ -110,13 +110,13 @@ public static class RoleNavCatalog
         }),
         new RoleNavSection("Authoring", new[]
         {
-            new RoleNavLink("Paper Generation",  "Index", "PaperGen",      "Teacher", "file-earmark-text"),
+            new RoleNavLink("Paper Generation",  "Index", "Papers",      "Teacher", "file-earmark-text", IsImplemented: true),
             new RoleNavLink("Blueprints",        "Index", "Blueprints",    "Teacher", "book"),
-            new RoleNavLink("Question Bank",     "Index", "QuestionBank",  "Teacher", "book"),
+            new RoleNavLink("Question Bank",     "Index", "Questions",  "Teacher", "book", IsImplemented: true),
         }),
         new RoleNavSection("Assessment", new[]
         {
-            new RoleNavLink("Evaluation Desk",   "Index", "Evaluation",    "Teacher", "pen"),
+            new RoleNavLink("Evaluation Desk",   "Index", "Evaluation",    "Teacher", "pen", IsImplemented: true),
             new RoleNavLink("Reports",           "Index", "Reports",       "Teacher", "graph-up"),
             new RoleNavLink("Coding IDE",        "Index", "CodingIde",     "Teacher", "code", IsImplemented: true),
         }),
@@ -127,9 +127,9 @@ public static class RoleNavCatalog
         new RoleNavSection("Main", new[]
         {
             new RoleNavLink("Dashboard",     "Index", "Home",       "Student", "speedometer", IsImplemented: true),
-            new RoleNavLink("My Exams",      "Index", "Exams",      "Student", "book"),
+            new RoleNavLink("My Exams",      "Index", "Exams",      "Student", "book", IsImplemented: true),
             new RoleNavLink("Results",       "Index", "Results",    "Student", "file-earmark-text"),
-            new RoleNavLink("My Analytics",  "Index", "Analytics",  "Student", "graph-up"),
+            new RoleNavLink("My Analytics",  "Index", "Analytics",  "Student", "graph-up", IsImplemented: true),
         }),
     };
 }
