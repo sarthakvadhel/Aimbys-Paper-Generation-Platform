@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using System.Text;
+using Aimbys.Application.Audit;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Questions;
 using Aimbys.Domain.Entities.Questions;
@@ -18,15 +21,18 @@ public class QuestionsController : Controller
     private readonly AppDbContext _db;
     private readonly IQuestionLifecycleService _lifecycle;
     private readonly IInstituteScope _scope;
+    private readonly IAuditWriter _audit;
 
     public QuestionsController(
         AppDbContext db,
         IQuestionLifecycleService lifecycle,
-        IInstituteScope scope)
+        IInstituteScope scope,
+        IAuditWriter audit)
     {
         _db = db;
         _lifecycle = lifecycle;
         _scope = scope;
+        _audit = audit;
     }
 
     [HttpGet]
@@ -94,4 +100,49 @@ public class QuestionsController : Controller
         TempData["Success"] = "Reviewer assigned.";
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpGet]
+    public async Task<IActionResult> Export(CancellationToken ct)
+    {
+        var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
+        if (instituteId is null)
+            return Forbid();
+
+        var questions = await _db.Set<Question>()
+            .Where(q => q.InstituteId == instituteId.Value)
+            .OrderByDescending(q => q.CreatedAtUtc)
+            .Join(_db.Subjects, q => q.SubjectId, s => s.Id, (q, s) => new { q, SubjectName = s.Name })
+            .Select(x => new
+            {
+                x.q.Id,
+                x.q.Type,
+                x.q.Status,
+                x.SubjectName,
+                x.q.CreatedAtUtc
+            })
+            .ToListAsync(ct);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Id,Type,Status,Subject,CreatedAtUtc");
+        foreach (var q in questions)
+        {
+            sb.AppendLine($"\"{q.Id}\",\"{q.Type}\",\"{q.Status}\",\"{EscapeCsv(q.SubjectName)}\",\"{q.CreatedAtUtc:O}\"");
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        await _audit.WriteAsync(
+            "Questions.Exported",
+            "Question",
+            instituteId.Value.ToString(),
+            userId,
+            $"{{\"count\":{questions.Count}}}",
+            AuditSeverity.Information,
+            ct);
+        await _db.SaveChangesAsync(ct);
+
+        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        return File(bytes, "text/csv", $"questions-export-{DateTime.UtcNow:yyyyMMdd}.csv");
+    }
+
+    private static string EscapeCsv(string value) => value.Replace("\"", "\"\"");
 }

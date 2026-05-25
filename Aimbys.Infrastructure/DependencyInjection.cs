@@ -16,6 +16,7 @@ using Aimbys.Application.Scheduling;
 using Aimbys.Application.SoftDelete;
 using Aimbys.Application.SystemHealth;
 using Aimbys.Application.Users;
+using Aimbys.Application.Verification;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
@@ -42,6 +43,7 @@ using Aimbys.Infrastructure.SoftDelete;
 using Aimbys.Infrastructure.Storage;
 using Aimbys.Infrastructure.SystemHealth;
 using Aimbys.Infrastructure.Users;
+using Aimbys.Infrastructure.Verification;
 using Aimbys.Infrastructure.Workflow;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -260,6 +262,10 @@ public static class DependencyInjection
         // ----- Subscription management (Chunk 36) -----------------------
         services.AddScoped<ISubscriptionManagementService, SubscriptionManagementService>();
         services.AddScoped<IScheduledJobHandler, SubscriptionExpirationJobHandler>();
+
+        // ----- Exports + QR + branding (Chunk 39) -----------------------
+        services.AddScoped<IPrintLogService, PrintLogService>();
+        services.AddScoped<IQrVerificationService, QrVerificationService>();
 
         return services;
     }

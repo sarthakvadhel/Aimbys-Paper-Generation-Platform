@@ -1,6 +1,10 @@
+using System.Security.Claims;
+using Aimbys.Application.Audit;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Configuration;
+using Aimbys.Application.Storage;
 using Aimbys.Application.Subscriptions;
+using Aimbys.Domain.Enums;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Persistence;
 using Aimbys.Web.Areas.Institute.ViewModels;
@@ -22,15 +26,21 @@ public class SettingsController : Controller
     private readonly IConfigurationService _config;
     private readonly IInstituteScope _scope;
     private readonly AppDbContext _db;
+    private readonly IFileStorageService _fileStorage;
+    private readonly IAuditWriter _audit;
 
     public SettingsController(
         IConfigurationService config,
         IInstituteScope scope,
-        AppDbContext db)
+        AppDbContext db,
+        IFileStorageService fileStorage,
+        IAuditWriter audit)
     {
         _config = config;
         _scope = scope;
         _db = db;
+        _fileStorage = fileStorage;
+        _audit = audit;
     }
 
     [HttpGet]
@@ -121,5 +131,59 @@ public class SettingsController : Controller
         var result = System.Text.RegularExpressions.Regex.Replace(
             middle, "([a-z])([A-Z])", "$1 $2");
         return char.ToUpperInvariant(result[0]) + result[1..];
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadLogo(IFormFile file, CancellationToken ct)
+    {
+        var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
+        if (instituteId is null)
+            return Forbid();
+
+        var institute = await _db.Institutes
+            .FirstOrDefaultAsync(i => i.Id == instituteId.Value, ct);
+
+        if (institute is null)
+            return NotFound();
+
+        var allowedMimes = new[] { "image/png", "image/jpeg", "image/svg+xml", "image/webp" };
+        const long maxBytes = 2 * 1024 * 1024; // 2 MB
+
+        try
+        {
+            var saveResult = await _fileStorage.SaveAsync(
+                FileArea.Reports,
+                $"Institute:{instituteId}:Logo",
+                file,
+                allowedMimes,
+                maxBytes,
+                instituteId,
+                User,
+                ct);
+
+            institute.LogoUrl = $"/files/{saveResult.Token}";
+            institute.UpdatedAtUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            await _audit.WriteAsync(
+                "Institute.LogoUploaded",
+                "Institute",
+                instituteId.Value.ToString(),
+                userId,
+                null,
+                AuditSeverity.Information,
+                ct);
+            await _db.SaveChangesAsync(ct);
+
+            TempData["Success"] = "Logo uploaded successfully.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Logo upload failed: {ex.Message}";
+        }
+
+        return RedirectToAction(nameof(Features));
     }
 }
