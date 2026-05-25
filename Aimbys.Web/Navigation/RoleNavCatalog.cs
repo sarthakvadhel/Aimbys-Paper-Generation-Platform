@@ -66,7 +66,7 @@ public static class RoleNavCatalog
         {
             new RoleNavLink("Dashboard",        "Index", "Home",        "SuperAdmin", "speedometer", IsImplemented: true),
             new RoleNavLink("Institutes",       "Index", "Institutes",  "SuperAdmin", "building", IsImplemented: true),
-            new RoleNavLink("Global Analytics", "Index", "Analytics",   "SuperAdmin", "graph-up"),
+            new RoleNavLink("Global Analytics", "Index", "Analytics",   "SuperAdmin", "graph-up", IsImplemented: true),
         }),
         new RoleNavSection("Management", new[]
         {
@@ -97,7 +97,7 @@ public static class RoleNavCatalog
         new RoleNavSection("Workflow", new[]
         {
             new RoleNavLink("Approvals",        "Index", "Approvals",     "Institute", "check-square"),
-            new RoleNavLink("Analytics",        "Index", "Analytics",     "Institute", "graph-up"),
+            new RoleNavLink("Analytics",        "Index", "Analytics",     "Institute", "graph-up", IsImplemented: true),
             new RoleNavLink("Settings",         "Index", "Settings",      "Institute", "gear", IsImplemented: true),
         }),
     };
@@ -117,7 +117,7 @@ public static class RoleNavCatalog
         new RoleNavSection("Assessment", new[]
         {
             new RoleNavLink("Evaluation Desk",   "Index", "Evaluation",    "Teacher", "pen"),
-            new RoleNavLink("Reports",           "Index", "Reports",       "Teacher", "graph-up"),
+            new RoleNavLink("Reports",           "Index", "Reports",       "Teacher", "graph-up", IsImplemented: true),
             new RoleNavLink("Coding IDE",        "Index", "CodingIde",     "Teacher", "code"),
         }),
     };
@@ -129,7 +129,7 @@ public static class RoleNavCatalog
             new RoleNavLink("Dashboard",     "Index", "Home",       "Student", "speedometer", IsImplemented: true),
             new RoleNavLink("My Exams",      "Index", "Exams",      "Student", "book"),
             new RoleNavLink("Results",       "Index", "Results",    "Student", "file-earmark-text"),
-            new RoleNavLink("My Analytics",  "Index", "Analytics",  "Student", "graph-up"),
+            new RoleNavLink("My Analytics",  "Index", "Analytics",  "Student", "graph-up", IsImplemented: true),
         }),
     };
 }
