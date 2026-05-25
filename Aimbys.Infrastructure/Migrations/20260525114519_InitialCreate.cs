@@ -1591,7 +1591,8 @@ namespace Aimbys.Infrastructure.Migrations
                     QuestionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     QuestionVersionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     SortOrder = table.Column<int>(type: "int", nullable: false),
-                    MarksOverride = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: true)
+                    MarksOverride = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: true),
+                    PaperVersionId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -1603,11 +1604,16 @@ namespace Aimbys.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
+                        name: "FK_PaperQuestions_PaperVersions_PaperVersionId",
+                        column: x => x.PaperVersionId,
+                        principalTable: "PaperVersions",
+                        principalColumn: "Id");
+                    table.ForeignKey(
                         name: "FK_PaperQuestions_PaperVersions_VersionId",
                         column: x => x.VersionId,
                         principalTable: "PaperVersions",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -2143,6 +2149,11 @@ namespace Aimbys.Infrastructure.Migrations
                 table: "NotificationTemplateTranslations",
                 columns: new[] { "TemplateId", "LanguageCode" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaperQuestions_PaperVersionId",
+                table: "PaperQuestions",
+                column: "PaperVersionId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PaperQuestions_SectionId",

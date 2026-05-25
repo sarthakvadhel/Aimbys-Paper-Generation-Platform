@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Aimbys.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260525112908_InitialCreate")]
+    [Migration("20260525114519_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -1665,6 +1665,9 @@ namespace Aimbys.Infrastructure.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
+                    b.Property<Guid?>("PaperVersionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("QuestionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1682,9 +1685,13 @@ namespace Aimbys.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SectionId");
+                    b.HasIndex("PaperVersionId");
 
-                    b.HasIndex("VersionId");
+                    b.HasIndex("SectionId")
+                        .HasDatabaseName("IX_PaperQuestions_SectionId");
+
+                    b.HasIndex("VersionId")
+                        .HasDatabaseName("IX_PaperQuestions_VersionId");
 
                     b.ToTable("PaperQuestions", (string)null);
                 });
@@ -3638,6 +3645,10 @@ namespace Aimbys.Infrastructure.Migrations
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Papers.PaperQuestion", b =>
                 {
+                    b.HasOne("Aimbys.Domain.Entities.Papers.PaperVersion", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("PaperVersionId");
+
                     b.HasOne("Aimbys.Domain.Entities.Papers.PaperSection", "Section")
                         .WithMany()
                         .HasForeignKey("SectionId")
@@ -3645,9 +3656,9 @@ namespace Aimbys.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("Aimbys.Domain.Entities.Papers.PaperVersion", "Version")
-                        .WithMany("Questions")
+                        .WithMany()
                         .HasForeignKey("VersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Section");
