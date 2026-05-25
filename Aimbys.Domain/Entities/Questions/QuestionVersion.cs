@@ -1,3 +1,5 @@
+using Aimbys.Domain.Enums;
+
 namespace Aimbys.Domain.Entities.Questions;
 
 /// <summary>
@@ -5,10 +7,6 @@ namespace Aimbys.Domain.Entities.Questions;
 /// creates a new version; the approval workflow validates against the
 /// latest version's fields.
 /// </summary>
-using Aimbys.Domain.Enums;
-
-namespace Aimbys.Domain.Entities.Questions;
-
 public class QuestionVersion
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -18,17 +16,6 @@ public class QuestionVersion
     /// <summary>Rich-text body of the question (HTML).</summary>
     public string BodyHtml { get; set; } = string.Empty;
 
-    /// <summary>Maximum marks awarded for a correct answer.</summary>
-    public int Marks { get; set; }
-
-    /// <summary>Optional difficulty tag (e.g. Easy / Medium / Hard).</summary>
-    public string? DifficultyTag { get; set; }
-
-    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-
-    // Navigation
-    public Question? Question { get; set; }
-    public string BodyHtml { get; set; } = string.Empty;
     public DifficultyLevel Difficulty { get; set; }
     public BloomLevel BloomLevel { get; set; }
     public decimal Marks { get; set; }
@@ -37,6 +24,16 @@ public class QuestionVersion
     public bool IsCurrentVersion { get; set; } = true;
     public string AuthorUserId { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    // ----- File-upload support (Chunk 34) ------------------------------------
+
+    /// <summary>Comma-separated MIME allow-list for file upload questions.</summary>
+    public string? AllowedMimeTypes { get; set; }
+
+    /// <summary>Max file size for file upload (default concept: 10 MB).</summary>
+    public long? MaxFileSizeBytes { get; set; }
+
+    // ----- Navigation -------------------------------------------------------
 
     public Question? Question { get; set; }
     public ICollection<QuestionOption> Options { get; set; } = new List<QuestionOption>();

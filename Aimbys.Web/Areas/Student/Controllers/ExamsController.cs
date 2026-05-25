@@ -1,5 +1,8 @@
 using System.Security.Claims;
 using Aimbys.Application.Exams;
+using Aimbys.Application.Storage;
+using Aimbys.Domain.Entities.Exams;
+using Aimbys.Domain.Entities.Questions;
 using Aimbys.Domain.Enums;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Persistence;
@@ -19,11 +22,13 @@ public class ExamsController : Controller
 {
     private readonly AppDbContext _db;
     private readonly IExamRuntimeService _runtime;
+    private readonly IFileStorageService _fileStorage;
 
-    public ExamsController(AppDbContext db, IExamRuntimeService runtime)
+    public ExamsController(AppDbContext db, IExamRuntimeService runtime, IFileStorageService fileStorage)
     {
         _db = db;
         _runtime = runtime;
+        _fileStorage = fileStorage;
     }
 
     /// <summary>GET /Student/Exams — upcoming + completed exams.</summary>
@@ -157,6 +162,79 @@ public class ExamsController : Controller
         TempData["Success"] = $"Exam submitted. Auto-score: {result.TotalAutoScore}";
         return RedirectToAction(nameof(Index));
     }
+
+    /// <summary>POST /Student/Exams/UploadAnswer — file upload for FileUpload-type questions.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadAnswer(Guid attemptId, Guid questionId, IFormFile file, CancellationToken ct)
+    {
+        // Validate attempt belongs to current student
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var attempt = await _db.ExamAttempts
+            .Include(a => a.Answers)
+            .FirstOrDefaultAsync(a => a.Id == attemptId, ct);
+
+        if (attempt == null)
+            return NotFound();
+
+        var studentProfile = await _db.StudentProfiles
+            .FirstOrDefaultAsync(sp => sp.UserId == userId, ct);
+        if (studentProfile == null || attempt.StudentProfileId != studentProfile.Id)
+            return Forbid();
+
+        // Get question version to check allowed MIMEs and max size
+        var question = await _db.Set<Question>()
+            .FirstOrDefaultAsync(q => q.Id == questionId, ct);
+        if (question == null || question.Type != QuestionType.FileUpload)
+            return BadRequest(new { error = "Question is not a file upload type." });
+
+        var currentVersion = await _db.Set<QuestionVersion>()
+            .FirstOrDefaultAsync(v => v.QuestionId == questionId && v.IsCurrentVersion, ct);
+
+        var mimeAllowList = currentVersion?.AllowedMimeTypes?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            ?? new[] { "application/pdf", "image/jpeg", "image/png" };
+        var maxBytes = currentVersion?.MaxFileSizeBytes ?? 10 * 1024 * 1024L;
+
+        try
+        {
+            var result = await _fileStorage.SaveAsync(
+                FileArea.Answers,
+                $"Attempt:{attemptId}:Question:{questionId}",
+                file,
+                mimeAllowList,
+                maxBytes,
+                studentProfile.InstituteId,
+                User,
+                ct);
+
+            // Update or create the answer record
+            var answer = attempt.Answers.FirstOrDefault(a => a.QuestionId == questionId);
+            if (answer == null)
+            {
+                answer = new ExamAttemptAnswer
+                {
+                    AttemptId = attemptId,
+                    QuestionId = questionId,
+                    QuestionVersionId = currentVersion?.Id ?? Guid.Empty,
+                    FileAssetId = result.Asset.Id,
+                    LastSavedAtUtc = DateTime.UtcNow
+                };
+                _db.Set<ExamAttemptAnswer>().Add(answer);
+            }
+            else
+            {
+                answer.FileAssetId = result.Asset.Id;
+                answer.LastSavedAtUtc = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync(ct);
+            return Ok(new { success = true, fileToken = result.Token });
+        }
+        catch (FileStorageException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 }
 
 // ----- View models and input DTOs (co-located for simplicity) -----
@@ -164,9 +242,9 @@ public class ExamsController : Controller
 public sealed class StudentExamsViewModel
 {
     public Guid StudentProfileId { get; set; }
-    public List<Aimbys.Domain.Entities.Exams.Exam> Upcoming { get; set; } = new();
-    public List<Aimbys.Domain.Entities.Exams.Exam> Completed { get; set; } = new();
-    public List<Aimbys.Domain.Entities.Exams.ExamAttempt> Attempts { get; set; } = new();
+    public List<Exam> Upcoming { get; set; } = new();
+    public List<Exam> Completed { get; set; } = new();
+    public List<ExamAttempt> Attempts { get; set; } = new();
 }
 
 public sealed class SaveAnswerInput
