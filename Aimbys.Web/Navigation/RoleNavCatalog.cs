@@ -118,7 +118,7 @@ public static class RoleNavCatalog
         {
             new RoleNavLink("Evaluation Desk",   "Index", "Evaluation",    "Teacher", "pen", IsImplemented: true),
             new RoleNavLink("Reports",           "Index", "Reports",       "Teacher", "graph-up"),
-            new RoleNavLink("Coding IDE",        "Index", "CodingIde",     "Teacher", "code"),
+            new RoleNavLink("Coding IDE",        "Index", "CodingIde",     "Teacher", "code", IsImplemented: true),
         }),
     };
 

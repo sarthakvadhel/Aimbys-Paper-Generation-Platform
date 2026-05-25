@@ -663,6 +663,119 @@ namespace Aimbys.Infrastructure.Migrations
                     b.ToTable("ClassBatches", (string)null);
                 });
 
+            modelBuilder.Entity("Aimbys.Domain.Entities.Coding.CodeExecutionQueue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EnqueuedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("WorkerIdentifier")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Priority", "EnqueuedAtUtc")
+                        .HasDatabaseName("IX_CodeExecutionQueues_Priority_EnqueuedAtUtc");
+
+                    b.ToTable("CodeExecutionQueues", (string)null);
+                });
+
+            modelBuilder.Entity("Aimbys.Domain.Entities.Coding.CodingSubmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ExamAttemptAnswerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ExecutionStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int?>("PassedTestCases")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("TotalTestCases")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExamAttemptAnswerId")
+                        .HasDatabaseName("IX_CodingSubmissions_ExamAttemptAnswerId");
+
+                    b.ToTable("CodingSubmissions", (string)null);
+                });
+
+            modelBuilder.Entity("Aimbys.Domain.Entities.Coding.CodingTestCaseResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActualOutput")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ErrorOutput")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ExecutionTimeMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExpectedOutput")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MemoryUsedKb")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Passed")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TestCaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubmissionId", "TestCaseId")
+                        .HasDatabaseName("IX_CodingTestCaseResults_SubmissionId_TestCaseId");
+
+                    b.ToTable("CodingTestCaseResults", (string)null);
+                });
+
             modelBuilder.Entity("Aimbys.Domain.Entities.Configuration.FeatureToggle", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3345,6 +3458,17 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Navigation("Institute");
                 });
 
+            modelBuilder.Entity("Aimbys.Domain.Entities.Coding.CodingTestCaseResult", b =>
+                {
+                    b.HasOne("Aimbys.Domain.Entities.Coding.CodingSubmission", "Submission")
+                        .WithMany("TestCaseResults")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
+                });
+
             modelBuilder.Entity("Aimbys.Domain.Entities.Configuration.InstituteSetting", b =>
                 {
                     b.HasOne("Aimbys.Domain.Entities.Institute", "Institute")
@@ -3668,6 +3792,11 @@ namespace Aimbys.Infrastructure.Migrations
             modelBuilder.Entity("Aimbys.Domain.Entities.ClassBatch", b =>
                 {
                     b.Navigation("Students");
+                });
+
+            modelBuilder.Entity("Aimbys.Domain.Entities.Coding.CodingSubmission", b =>
+                {
+                    b.Navigation("TestCaseResults");
                 });
 
             modelBuilder.Entity("Aimbys.Domain.Entities.Department", b =>
