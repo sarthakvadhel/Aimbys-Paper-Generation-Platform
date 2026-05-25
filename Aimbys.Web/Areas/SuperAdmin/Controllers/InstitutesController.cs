@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using System.Text;
+using Aimbys.Application.Audit;
 using Aimbys.Application.Institutes;
 using Aimbys.Domain.Enums;
 using Aimbys.Infrastructure.Identity;
@@ -19,11 +21,13 @@ public class InstitutesController : Controller
 
     private readonly AppDbContext _db;
     private readonly IInstituteOnboardingService _onboarding;
+    private readonly IAuditWriter _audit;
 
-    public InstitutesController(AppDbContext db, IInstituteOnboardingService onboarding)
+    public InstitutesController(AppDbContext db, IInstituteOnboardingService onboarding, IAuditWriter audit)
     {
         _db = db;
         _onboarding = onboarding;
+        _audit = audit;
     }
 
     public async Task<IActionResult> Index(string? q, string? status, string? type, int page = 1)
@@ -233,6 +237,17 @@ public class InstitutesController : Controller
         {
             sb.AppendLine($"\"{Escape(i.Code)}\",\"{Escape(i.Name)}\",\"{Escape(i.City)}\",\"{Escape(i.State)}\",\"{i.Type}\",\"{i.Status}\",\"{i.LicenseTier}\",\"{Escape(i.ContactEmail)}\",\"{i.CreatedAtUtc:O}\"");
         }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        await _audit.WriteAsync(
+            "Institutes.Exported",
+            "Institute",
+            "all",
+            userId,
+            $"{{\"count\":{institutes.Count}}}",
+            AuditSeverity.Information,
+            HttpContext.RequestAborted);
+        await _db.SaveChangesAsync(HttpContext.RequestAborted);
 
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
         return File(bytes, "text/csv", $"institutes-export-{DateTime.UtcNow:yyyyMMdd}.csv");

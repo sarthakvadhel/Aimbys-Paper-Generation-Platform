@@ -158,6 +158,9 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     // ----- Broadcasts (Chunk 35) -------------------------------------------
     public DbSet<Broadcast> Broadcasts => Set<Broadcast>();
 
+    // ----- Exports + QR + branding (Chunk 39) ------------------------------
+    public DbSet<PrintLog> PrintLogs => Set<PrintLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Configures the AspNet* Identity tables first.
@@ -1202,6 +1205,25 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasIndex(x => x.IsActive).HasDatabaseName("IX_Broadcasts_IsActive");
             b.HasIndex(x => new { x.IsActive, x.StartsAtUtc, x.EndsAtUtc })
              .HasDatabaseName("IX_Broadcasts_IsActive_StartsAtUtc_EndsAtUtc");
+        });
+
+        // ---------- PrintLog (Chunk 39) -----------------------------------------
+        modelBuilder.Entity<PrintLog>(b =>
+        {
+            b.ToTable("PrintLogs");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.DocumentType).HasConversion<int>().IsRequired();
+            b.Property(x => x.PrintedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.PrintedAtUtc).IsRequired();
+            b.Property(x => x.IpAddress).HasMaxLength(45);
+
+            b.HasIndex(x => new { x.DocumentType, x.PrintedAtUtc })
+             .HasDatabaseName("IX_PrintLogs_DocumentType_PrintedAtUtc");
+            b.HasIndex(x => x.InstituteId)
+             .HasDatabaseName("IX_PrintLogs_InstituteId");
+            b.HasIndex(x => x.PrintedByUserId)
+             .HasDatabaseName("IX_PrintLogs_PrintedByUserId");
         });
 
         ApplySoftDeleteQueryFilters(modelBuilder);
