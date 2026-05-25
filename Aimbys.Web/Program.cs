@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using Aimbys.Application.Scheduling;
 using Aimbys.Infrastructure;
 using Aimbys.Infrastructure.Exams;
@@ -7,9 +8,56 @@ using Aimbys.Infrastructure.Retention;
 using Aimbys.Infrastructure.Storage;
 using Aimbys.Web.Middleware;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Rate Limiting (Chunk 38) ──────────────────────────────────────────
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Login: 5 per minute per IP
+    options.AddFixedWindowLimiter("login", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    // Export endpoints: 10 per minute per user
+    options.AddFixedWindowLimiter("export", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    // Bulk operations: 2 per minute per user
+    options.AddFixedWindowLimiter("bulk", opt =>
+    {
+        opt.PermitLimit = 2;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    // Heartbeat: 1 per 5 seconds per user
+    options.AddFixedWindowLimiter("heartbeat", opt =>
+    {
+        opt.PermitLimit = 1;
+        opt.Window = TimeSpan.FromSeconds(5);
+        opt.QueueLimit = 0;
+    });
+});
+
+// ── Output Caching (Chunk 38) ────────────────────────────────────────
+builder.Services.AddOutputCache(options =>
+{
+    options.AddBasePolicy(b => b.NoCache());
+    options.AddPolicy("LandingPage", b => b.Expire(TimeSpan.FromMinutes(5)));
+    options.AddPolicy("LoginPage", b => b.Expire(TimeSpan.FromMinutes(1)).SetVaryByQuery("ReturnUrl"));
+});
 
 // Add services to the container.
 //
@@ -44,6 +92,9 @@ if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString(Dependen
 
 var app = builder.Build();
 
+// ── Security headers (Chunk 38) — earliest possible so even error pages carry them.
+app.UseSecureHeaders();
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -55,6 +106,12 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+// ── Output caching (Chunk 38) — after routing so endpoint metadata is resolved.
+app.UseOutputCache();
+
+// ── Rate limiting (Chunk 38) — after routing, before auth.
+app.UseRateLimiter();
+
 // Request-metrics middleware (Chunk 35): captures status code and
 // elapsed milliseconds for every request and feeds the in-memory
 // RequestMetricsCollector that powers the SuperAdmin SystemHealth
@@ -62,6 +119,9 @@ app.UseRouting();
 // available but before authn/authz so 401/403/redirect responses
 // are also counted.
 app.UseMiddleware<Aimbys.Infrastructure.SystemHealth.RequestMetricsMiddleware>();
+
+// ── Content Security Policy (Chunk 38) — before auth so CSP applies to all responses.
+app.UseContentSecurityPolicy();
 
 // Authentication MUST come before Authorization. Identity wires the cookie
 // scheme into the request via UseAuthentication.

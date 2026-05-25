@@ -6,11 +6,13 @@ using Aimbys.Infrastructure.Identity;
 using Aimbys.Web.Areas.Institute.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Aimbys.Web.Areas.Institute.Controllers;
 
 [Area("Institute")]
 [Authorize(Roles = Roles.InstituteAdmin)]
+[EnableRateLimiting("bulk")]
 public class BulkOperationsController : Controller
 {
     private readonly IBulkOperationService _bulk;
