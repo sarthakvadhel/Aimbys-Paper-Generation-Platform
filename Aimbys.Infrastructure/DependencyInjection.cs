@@ -26,6 +26,8 @@ using Aimbys.Infrastructure.Authorization;
 using Aimbys.Infrastructure.Broadcasts;
 using Aimbys.Infrastructure.Bulk;
 using Aimbys.Infrastructure.Configuration;
+using Aimbys.Application.Subscriptions;
+using Aimbys.Infrastructure.Subscriptions;
 using Aimbys.Infrastructure.DocumentRendering;
 using Aimbys.Infrastructure.Exams;
 using Aimbys.Infrastructure.Identity;
@@ -254,6 +256,10 @@ public static class DependencyInjection
         // touches AppDbContext and IAuditWriter.
         services.AddSingleton<IRequestMetricsCollector, RequestMetricsCollector>();
         services.AddScoped<IBroadcastService, BroadcastService>();
+
+        // ----- Subscription management (Chunk 36) -----------------------
+        services.AddScoped<ISubscriptionManagementService, SubscriptionManagementService>();
+        services.AddScoped<IScheduledJobHandler, SubscriptionExpirationJobHandler>();
 
         return services;
     }

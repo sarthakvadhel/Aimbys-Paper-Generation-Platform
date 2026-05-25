@@ -70,7 +70,7 @@ public static class RoleNavCatalog
         }),
         new RoleNavSection("Management", new[]
         {
-            new RoleNavLink("Licenses",         "Index", "Licenses",    "SuperAdmin", "credit-card"),
+            new RoleNavLink("Licenses",         "Index", "Subscriptions", "SuperAdmin", "credit-card", IsImplemented: true),
             new RoleNavLink("Security Monitor", "Index", "Security",    "SuperAdmin", "shield"),
             new RoleNavLink("System Health",    "Index", "System",      "SuperAdmin", "hdd-stack", IsImplemented: true),
         }),
