@@ -1,3 +1,4 @@
+using Aimbys.Application.Analytics;
 using Aimbys.Application.OrgTree;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Audit;
@@ -12,6 +13,7 @@ using Aimbys.Application.SoftDelete;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
+using Aimbys.Infrastructure.Analytics;
 using Aimbys.Infrastructure.OrgTree;
 using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;
@@ -225,6 +227,13 @@ public static class DependencyInjection
         services.AddScoped<IOrgTreeService, OrgTreeService>();
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
+
+        // ----- Analytics aggregation + nightly jobs (Chunk 30) ----------
+        services.AddScoped<IAnalyticsAggregationService, AnalyticsAggregationService>();
+        services.AddScoped<IScheduledJobHandler, InstituteAnalyticsAggregator>();
+        services.AddScoped<IScheduledJobHandler, StudentPerformanceAggregator>();
+        services.AddScoped<IScheduledJobHandler, EvaluatorEfficiencyAggregator>();
+        services.AddScoped<IScheduledJobHandler, LeaderboardRecomputer>();
 
         return services;
     }

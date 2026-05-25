@@ -1,5 +1,6 @@
 using Aimbys.Application.Scheduling;
 using Aimbys.Infrastructure;
+using Aimbys.Infrastructure.Analytics;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Retention;
 using Aimbys.Infrastructure.Storage;
@@ -103,6 +104,20 @@ using (var scope = app.Services.CreateScope())
         await scheduler.ScheduleRecurringAsync(
             RetentionEnforcementJobHandler.Key,
             RetentionEnforcementJobHandler.DefaultCron);
+
+        // ----- Analytics nightly jobs (Chunk 30) -------------------------
+        await scheduler.ScheduleRecurringAsync(
+            InstituteAnalyticsAggregator.Key,
+            InstituteAnalyticsAggregator.DefaultCron);
+        await scheduler.ScheduleRecurringAsync(
+            StudentPerformanceAggregator.Key,
+            StudentPerformanceAggregator.DefaultCron);
+        await scheduler.ScheduleRecurringAsync(
+            EvaluatorEfficiencyAggregator.Key,
+            EvaluatorEfficiencyAggregator.DefaultCron);
+        await scheduler.ScheduleRecurringAsync(
+            LeaderboardRecomputer.Key,
+            LeaderboardRecomputer.DefaultCron);
     }
     catch (Exception ex)
     {

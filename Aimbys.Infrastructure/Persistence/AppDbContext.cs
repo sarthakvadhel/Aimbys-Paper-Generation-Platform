@@ -1,4 +1,5 @@
 using Aimbys.Domain.Entities;
+using Aimbys.Domain.Entities.Analytics;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Notifications;
@@ -73,6 +74,11 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Domain.Entities.Stream> Streams => Set<Domain.Entities.Stream>();
     public DbSet<Major> Majors => Set<Major>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
+
+    // ----- Analytics (Chunk 30) --------------------------------------------
+    public DbSet<AnalyticsSnapshot> AnalyticsSnapshots => Set<AnalyticsSnapshot>();
+    public DbSet<AggregatedAnalyticsTable> AggregatedAnalyticsTables => Set<AggregatedAnalyticsTable>();
+    public DbSet<CachedLeaderboardEntry> CachedLeaderboardEntries => Set<CachedLeaderboardEntry>();
 
     // ----- Notification hardening + audit visibility (Chunk 13) ----------
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
@@ -870,6 +876,45 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 30 — analytics snapshots + aggregation =====================
+
+        // ---------- AnalyticsSnapshot ---------------------------------------
+        modelBuilder.Entity<AnalyticsSnapshot>(b =>
+        {
+            b.ToTable("AnalyticsSnapshots");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Scope).HasConversion<int>().IsRequired();
+            b.Property(x => x.MetricKey).IsRequired().HasMaxLength(200);
+            b.Property(x => x.MetricValueJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.HasIndex(x => new { x.Scope, x.ScopeId, x.MetricKey, x.CapturedAtUtc })
+             .HasDatabaseName("IX_AnalyticsSnapshots_Scope_ScopeId_MetricKey_CapturedAtUtc");
+        });
+
+        // ---------- AggregatedAnalyticsTable --------------------------------
+        modelBuilder.Entity<AggregatedAnalyticsTable>(b =>
+        {
+            b.ToTable("AggregatedAnalyticsTables");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Scope).HasConversion<int>().IsRequired();
+            b.Property(x => x.DimensionKey).IsRequired().HasMaxLength(200);
+            b.Property(x => x.DimensionValue).IsRequired().HasMaxLength(500);
+            b.Property(x => x.MetricJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.HasIndex(x => new { x.Scope, x.ScopeId, x.DimensionKey, x.PeriodStart })
+             .HasDatabaseName("IX_AggregatedAnalyticsTables_Scope_ScopeId_DimensionKey_PeriodStart");
+        });
+
+        // ---------- CachedLeaderboardEntry ----------------------------------
+        modelBuilder.Entity<CachedLeaderboardEntry>(b =>
+        {
+            b.ToTable("CachedLeaderboardEntries");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.TotalScore).HasPrecision(7, 2);
+            b.HasIndex(x => new { x.ExamId, x.ClassBatchId, x.Rank })
+             .HasDatabaseName("IX_CachedLeaderboardEntries_ExamId_ClassBatchId_Rank");
+            b.HasIndex(x => x.StudentProfileId)
+             .HasDatabaseName("IX_CachedLeaderboardEntries_StudentProfileId");
         });
 
         // ===== Soft-delete global query filter convention ==================
