@@ -2382,6 +2382,9 @@ namespace Aimbys.Infrastructure.Migrations
                     b.Property<Guid>("InstituteId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("PreferredLanguageId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("RollNumber")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");

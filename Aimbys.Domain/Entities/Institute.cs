@@ -55,6 +55,8 @@ public class Institute : IRestoreable
 
     public DateTime? ApprovedAtUtc { get; set; }
 
+    public Guid? DefaultLanguageId { get; set; }
+
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 
