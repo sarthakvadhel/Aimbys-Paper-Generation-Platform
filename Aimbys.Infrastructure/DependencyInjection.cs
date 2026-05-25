@@ -1,3 +1,4 @@
+using Aimbys.Application.Coding;
 using Aimbys.Application.OrgTree;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Audit;
@@ -12,6 +13,7 @@ using Aimbys.Application.SoftDelete;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
 using Aimbys.Application.Storage;
+using Aimbys.Infrastructure.Coding;
 using Aimbys.Infrastructure.OrgTree;
 using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;
@@ -225,6 +227,11 @@ public static class DependencyInjection
         services.AddScoped<IOrgTreeService, OrgTreeService>();
         // ----- Institute onboarding (Chunk 17) --------------------------
         services.AddScoped<IInstituteOnboardingService, InstituteOnboardingService>();
+
+        // ----- Coding exam (Chunk 33) -----------------------------------
+        services.AddScoped<ICodeExecutionService, CodeExecutionService>();
+        services.AddScoped<IPlagiarismScorer, PlagiarismScorer>();
+        services.AddScoped<IScheduledJobHandler, CodeExecutionQueueProcessor>();
 
         return services;
     }

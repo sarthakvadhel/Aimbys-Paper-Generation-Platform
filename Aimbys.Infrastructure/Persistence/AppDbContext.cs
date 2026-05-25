@@ -1,10 +1,12 @@
 using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Audit;
+using Aimbys.Domain.Entities.Coding;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Notifications;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
+using Aimbys.Domain.Enums;
 using Aimbys.Domain.SoftDelete;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -82,6 +84,11 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<NotificationChannelConfig> NotificationChannelConfigs
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
+
+    // ----- Coding exam (Chunk 33) ----------------------------------------
+    public DbSet<CodingSubmission> CodingSubmissions => Set<CodingSubmission>();
+    public DbSet<CodingTestCaseResult> CodingTestCaseResults => Set<CodingTestCaseResult>();
+    public DbSet<CodeExecutionQueue> CodeExecutionQueues => Set<CodeExecutionQueue>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -870,6 +877,40 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.SortOrder).IsRequired();
             b.HasOne(x => x.Subject).WithMany(s => s.Chapters).HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
+        });
+
+        // ===== Chunk 33 — coding exam =========================================
+
+        // ---------- CodingSubmission ----------------------------------------
+        modelBuilder.Entity<CodingSubmission>(b =>
+        {
+            b.ToTable("CodingSubmissions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Language).IsRequired().HasMaxLength(30);
+            b.Property(x => x.SourceCode).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.ExecutionStatus).HasConversion<int>().IsRequired();
+            b.HasMany(x => x.TestCaseResults).WithOne(r => r.Submission).HasForeignKey(r => r.SubmissionId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => x.ExamAttemptAnswerId).HasDatabaseName("IX_CodingSubmissions_ExamAttemptAnswerId");
+        });
+
+        // ---------- CodingTestCaseResult ------------------------------------
+        modelBuilder.Entity<CodingTestCaseResult>(b =>
+        {
+            b.ToTable("CodingTestCaseResults");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ActualOutput).HasColumnType("nvarchar(max)");
+            b.Property(x => x.ExpectedOutput).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.ErrorOutput).HasColumnType("nvarchar(max)");
+            b.HasIndex(x => new { x.SubmissionId, x.TestCaseId }).HasDatabaseName("IX_CodingTestCaseResults_SubmissionId_TestCaseId");
+        });
+
+        // ---------- CodeExecutionQueue --------------------------------------
+        modelBuilder.Entity<CodeExecutionQueue>(b =>
+        {
+            b.ToTable("CodeExecutionQueues");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.WorkerIdentifier).HasMaxLength(200);
+            b.HasIndex(x => new { x.Priority, x.EnqueuedAtUtc }).HasDatabaseName("IX_CodeExecutionQueues_Priority_EnqueuedAtUtc");
         });
 
         // ===== Soft-delete global query filter convention ==================
