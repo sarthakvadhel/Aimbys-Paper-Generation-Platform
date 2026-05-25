@@ -9,7 +9,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">@Model.Exam?.Title</h5>
         <div class="d-flex align-items-center gap-3">
-            <span class="badge bg-danger fs-6" id="timer">--:--</span>
+            <span class="badge bg-danger fs-6" id="timer" aria-live="polite" aria-atomic="true">--:--</span>
             <form asp-action="Submit" method="post" class="d-inline" id="submitForm">
                 <input type="hidden" name="attemptId" value="@Model.Id" />
                 <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Are you sure you want to submit?')">

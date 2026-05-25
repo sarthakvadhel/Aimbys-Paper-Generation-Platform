@@ -1,3 +1,5 @@
+[![Build](https://github.com/sarthakvadhel/Aimbys-Paper-Generation-Platform/actions/workflows/build.yml/badge.svg)](https://github.com/sarthakvadhel/Aimbys-Paper-Generation-Platform/actions/workflows/build.yml)
+
 # AIMBYS Paper Generation Platform
 
 The current `src/` tree is a Vite + React 18 + Tailwind UI/UX reference, exported

@@ -27,6 +27,8 @@
     <title>@pageTitle &mdash; AIMBYS</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/accessibility.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/responsive.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Aimbys.Web.styles.css" asp-append-version="true" />
     <style>
         /* The accent CSS variable scopes per-shell so a single layout
@@ -43,7 +45,7 @@
     <div class="aimbys-role-shell__layout">
 
         @* Persistent sidebar on lg+. Hidden below lg by Bootstrap. *@
-        <div class="aimbys-role-shell__sidebar d-none d-lg-flex flex-column">
+        <div class="aimbys-role-shell__sidebar d-none d-lg-flex flex-column" role="navigation" aria-label="Main navigation">
             <partial name="_RoleSidebar" />
         </div>
 
