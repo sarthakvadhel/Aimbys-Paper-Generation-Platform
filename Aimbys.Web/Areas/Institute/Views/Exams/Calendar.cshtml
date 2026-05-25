@@ -1,0 +1,61 @@
+@model IEnumerable<Aimbys.Domain.Entities.Exams.Exam>
+@{
+    ViewData["Title"] = "Exam Calendar";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Exam Calendar</h4>
+        <a asp-action="Schedule" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i> Schedule Exam
+        </a>
+    </div>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @success
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Title</th>
+                            <th>Scheduled At (UTC)</th>
+                            <th>Duration (min)</th>
+                            <th>Status</th>
+                            <th>Attempts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var exam in Model)
+                        {
+                            <tr>
+                                <td>@exam.Title</td>
+                                <td>@exam.ScheduledAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>@exam.DurationMinutes</td>
+                                <td>
+                                    <span class="badge bg-secondary">@exam.Status</span>
+                                </td>
+                                <td>@exam.Attempts.Count</td>
+                            </tr>
+                        }
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No exams scheduled yet.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
