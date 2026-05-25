@@ -4,6 +4,7 @@ using Aimbys.Web.Models;
 using Aimbys.Web.ViewModels.Account;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace Aimbys.Web.Controllers;
 
@@ -24,6 +25,7 @@ public class HomeController : Controller
     /// </para>
     /// </summary>
     [AllowAnonymous]
+    [OutputCache(PolicyName = "LandingPage")]
     public IActionResult Index(string? returnUrl = null)
     {
         if (User?.Identity?.IsAuthenticated == true

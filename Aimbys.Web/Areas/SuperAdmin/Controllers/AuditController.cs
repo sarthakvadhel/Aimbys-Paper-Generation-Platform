@@ -6,6 +6,7 @@ using Aimbys.Infrastructure.Persistence;
 using Aimbys.Web.Areas.SuperAdmin.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Aimbys.Web.Areas.SuperAdmin.Controllers;
@@ -91,6 +92,7 @@ public class AuditController : Controller
     }
 
     [HttpGet]
+    [EnableRateLimiting("export")]
     public async Task<IActionResult> Export(
         AuditSeverity? severity,
         string? entityType,
