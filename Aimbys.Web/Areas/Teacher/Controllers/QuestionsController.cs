@@ -1,7 +1,5 @@
+using System.Security.Claims;
 using Aimbys.Application.Questions;
-using Aimbys.Infrastructure.Identity;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Aimbys.Application.Storage;
 using Aimbys.Domain.Entities.Questions;
 using Aimbys.Domain.Enums;
@@ -19,23 +17,21 @@ namespace Aimbys.Web.Areas.Teacher.Controllers;
 [Authorize(Roles = Roles.Teacher)]
 public class QuestionsController : Controller
 {
-    private readonly IQuestionLifecycleService _lifecycle;
-
-    public QuestionsController(IQuestionLifecycleService lifecycle)
-    {
-        _lifecycle = lifecycle;
     private readonly IQuestionAuthoringService _authoring;
+    private readonly IQuestionLifecycleService _lifecycle;
     private readonly AppDbContext _db;
     private readonly UserManager<IdentityUser> _userManager;
     private readonly IFileStorageService _fileStorage;
 
     public QuestionsController(
         IQuestionAuthoringService authoring,
+        IQuestionLifecycleService lifecycle,
         AppDbContext db,
         UserManager<IdentityUser> userManager,
         IFileStorageService fileStorage)
     {
         _authoring = authoring;
+        _lifecycle = lifecycle;
         _db = db;
         _userManager = userManager;
         _fileStorage = fileStorage;
@@ -88,17 +84,6 @@ public class QuestionsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Submit(Guid id, CancellationToken ct)
-    {
-        var result = await _lifecycle.SubmitForReviewAsync(id, User, ct);
-        if (!result.Success)
-        {
-            TempData["Error"] = result.ErrorMessage;
-            return RedirectToAction("Index", "Home");
-        }
-
-        TempData["Success"] = "Question submitted for review.";
-        return RedirectToAction("Index", "Home");
     public async Task<IActionResult> Create(QuestionCreateViewModel model, CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -128,6 +113,21 @@ public class QuestionsController : Controller
         }
 
         TempData["Success"] = "Question created successfully.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Submit(Guid id, CancellationToken ct)
+    {
+        var result = await _lifecycle.SubmitForReviewAsync(id, User, ct);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.ErrorMessage;
+            return RedirectToAction(nameof(Index));
+        }
+
+        TempData["Success"] = "Question submitted for review.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -253,9 +253,116 @@ public class QuestionsController : Controller
 
             return Json(new { location = $"/files/{result.Token}" });
         }
-        catch (Application.Storage.FileStorageException ex)
+        catch (FileStorageException ex)
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    // ===== Case-study actions (Chunk 34) =====================================
+
+    /// <summary>GET /Teacher/Questions/CreateCaseStudy — form for creating a case-study parent.</summary>
+    [HttpGet]
+    public IActionResult CreateCaseStudy()
+    {
+        return View(new CaseStudyCreateViewModel());
+    }
+
+    /// <summary>POST /Teacher/Questions/CreateCaseStudy — persists parent + sub-questions.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateCaseStudy(CaseStudyCreateViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+            return View(model);
+
+        var userId = _userManager.GetUserId(User) ?? string.Empty;
+        var teacherProfile = await _db.TeacherProfiles
+            .FirstOrDefaultAsync(t => t.UserId == userId, ct);
+
+        if (teacherProfile is null)
+        {
+            ModelState.AddModelError(string.Empty, "Teacher profile not found.");
+            return View(model);
+        }
+
+        // Create the parent case-study question
+        var parent = new Question
+        {
+            InstituteId = teacherProfile.InstituteId,
+            SubjectId = model.SubjectId,
+            ChapterId = model.ChapterId,
+            AuthorTeacherProfileId = teacherProfile.Id,
+            AuthorUserId = userId,
+            Type = QuestionType.CaseStudy,
+            CaseStudyContextHtml = model.CaseStudyContextHtml
+        };
+
+        _db.Set<Question>().Add(parent);
+
+        // Create sub-questions
+        foreach (var sub in model.SubQuestions)
+        {
+            var subQuestion = new Question
+            {
+                InstituteId = teacherProfile.InstituteId,
+                SubjectId = model.SubjectId,
+                ChapterId = model.ChapterId,
+                AuthorTeacherProfileId = teacherProfile.Id,
+                AuthorUserId = userId,
+                Type = sub.Type,
+                ParentQuestionId = parent.Id
+            };
+
+            _db.Set<Question>().Add(subQuestion);
+
+            var version = new QuestionVersion
+            {
+                QuestionId = subQuestion.Id,
+                VersionNumber = 1,
+                BodyHtml = sub.BodyHtml,
+                Difficulty = sub.Difficulty,
+                BloomLevel = sub.BloomLevel,
+                Marks = sub.Marks,
+                EstimatedTimeMinutes = sub.EstimatedTimeMinutes,
+                InstructionsHtml = sub.InstructionsHtml,
+                IsCurrentVersion = true,
+                AuthorUserId = userId
+            };
+
+            _db.Set<QuestionVersion>().Add(version);
+
+            subQuestion.CurrentVersionId = version.Id;
+
+            // Add options if applicable
+            foreach (var opt in sub.Options)
+            {
+                _db.Set<QuestionOption>().Add(new QuestionOption
+                {
+                    VersionId = version.Id,
+                    Label = opt.Label,
+                    Text = opt.Text,
+                    IsCorrect = opt.IsCorrect,
+                    SortOrder = opt.SortOrder
+                });
+            }
+
+            // Add rubric criteria if applicable
+            foreach (var rubric in sub.RubricCriteria)
+            {
+                _db.Set<QuestionRubricCriterion>().Add(new QuestionRubricCriterion
+                {
+                    VersionId = version.Id,
+                    Criterion = rubric.Criterion,
+                    MaxPoints = rubric.MaxPoints,
+                    SortOrder = rubric.SortOrder
+                });
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        TempData["Success"] = "Case study created successfully.";
+        return RedirectToAction(nameof(Index));
     }
 }

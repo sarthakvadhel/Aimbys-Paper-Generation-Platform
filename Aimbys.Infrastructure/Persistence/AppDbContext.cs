@@ -3,9 +3,14 @@ using Aimbys.Domain.Entities.Analytics;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Blueprints;
 using Aimbys.Domain.Entities.Configuration;
+using Aimbys.Domain.Entities.Evaluation;
 using Aimbys.Domain.Entities.Exams;
+using Aimbys.Domain.Entities.Moderation;
+using Aimbys.Domain.Entities.Multilingual;
 using Aimbys.Domain.Entities.Notifications;
+using Aimbys.Domain.Entities.Papers;
 using Aimbys.Domain.Entities.Questions;
+using Aimbys.Domain.Entities.Results;
 using Aimbys.Domain.Entities.Retention;
 using Aimbys.Domain.Entities.Scheduling;
 using Aimbys.Domain.Entities.Workflow;
@@ -79,13 +84,6 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Major> Majors => Set<Major>();
     public DbSet<Chapter> Chapters => Set<Chapter>();
 
-    // ----- Question approval workflow (Chunk 21) ---------------------------
-    public DbSet<Question> Questions => Set<Question>();
-    public DbSet<QuestionVersion> QuestionVersions => Set<QuestionVersion>();
-    public DbSet<QuestionReview> QuestionReviews => Set<QuestionReview>();
-    public DbSet<QuestionApproval> QuestionApprovals => Set<QuestionApproval>();
-    public DbSet<QuestionModeration> QuestionModerations => Set<QuestionModeration>();
-
     // ----- Notification hardening + audit visibility (Chunk 13) ----------
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
     public DbSet<NotificationTemplateTranslation> NotificationTemplateTranslations
@@ -95,7 +93,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         => Set<NotificationChannelConfig>();
     public DbSet<AuditVisibilityRule> AuditVisibilityRules => Set<AuditVisibilityRule>();
 
-    // ----- Question authoring + versioning (Chunk 20) --------------------
+    // ----- Question authoring + versioning + approval (Chunk 20/21) ------
     public DbSet<Question> Questions => Set<Question>();
     public DbSet<QuestionVersion> QuestionVersions => Set<QuestionVersion>();
     public DbSet<QuestionOption> QuestionOptions => Set<QuestionOption>();
@@ -103,6 +101,58 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
     public DbSet<QuestionTestCase> QuestionTestCases => Set<QuestionTestCase>();
     public DbSet<QuestionAsset> QuestionAssets => Set<QuestionAsset>();
     public DbSet<QuestionExposureLog> QuestionExposureLogs => Set<QuestionExposureLog>();
+    public DbSet<QuestionReview> QuestionReviews => Set<QuestionReview>();
+    public DbSet<QuestionApproval> QuestionApprovals => Set<QuestionApproval>();
+    public DbSet<QuestionModeration> QuestionModerations => Set<QuestionModeration>();
+
+    // ----- Exam runtime (Chunk 26+) ----------------------------------------
+    public DbSet<Exam> Exams => Set<Exam>();
+    public DbSet<ExamAttempt> ExamAttempts => Set<ExamAttempt>();
+    public DbSet<ExamAttemptAnswer> ExamAttemptAnswers => Set<ExamAttemptAnswer>();
+    public DbSet<ExamEvent> ExamEvents => Set<ExamEvent>();
+    public DbSet<ExamSession> ExamSessions => Set<ExamSession>();
+
+    // ----- Blueprints (Chunk 23) -------------------------------------------
+    public DbSet<Blueprint> Blueprints => Set<Blueprint>();
+    public DbSet<BlueprintSection> BlueprintSections => Set<BlueprintSection>();
+    public DbSet<BlueprintConstraint> BlueprintConstraints => Set<BlueprintConstraint>();
+    public DbSet<BlueprintCohort> BlueprintCohorts => Set<BlueprintCohort>();
+
+    // ----- Papers (Chunk 24) -----------------------------------------------
+    public DbSet<Paper> Papers => Set<Paper>();
+    public DbSet<PaperVersion> PaperVersions => Set<PaperVersion>();
+    public DbSet<PaperSection> PaperSections => Set<PaperSection>();
+    public DbSet<PaperQuestion> PaperQuestions => Set<PaperQuestion>();
+    public DbSet<PublishedSnapshot> PublishedSnapshots => Set<PublishedSnapshot>();
+
+    // ----- Evaluation (Chunk 28) -------------------------------------------
+    public DbSet<Domain.Entities.Evaluation.Evaluation> Evaluations => Set<Domain.Entities.Evaluation.Evaluation>();
+    public DbSet<DraftScore> DraftScores => Set<DraftScore>();
+    public DbSet<EvaluatedScore> EvaluatedScores => Set<EvaluatedScore>();
+    public DbSet<ScoringScheme> ScoringSchemes => Set<ScoringScheme>();
+
+    // ----- Results (Chunk 29) ----------------------------------------------
+    public DbSet<Result> Results => Set<Result>();
+    public DbSet<ResultAppeal> ResultAppeals => Set<ResultAppeal>();
+    public DbSet<FinalPublishedScore> FinalPublishedScores => Set<FinalPublishedScore>();
+
+    // ----- Analytics (Chunk 30) --------------------------------------------
+    public DbSet<QuestionUsageAnalytics> QuestionUsageAnalytics => Set<QuestionUsageAnalytics>();
+    public DbSet<AnalyticsSnapshot> AnalyticsSnapshots => Set<AnalyticsSnapshot>();
+
+    // ----- Blueprints versions (Chunk 23) ----------------------------------
+    public DbSet<BlueprintVersion> BlueprintVersions => Set<BlueprintVersion>();
+
+    // ----- Multilingual (Chunk 32) -----------------------------------------
+    public DbSet<QuestionTranslation> QuestionTranslations => Set<QuestionTranslation>();
+    public DbSet<Language> Languages => Set<Language>();
+    public DbSet<PaperLanguageSet> PaperLanguageSets => Set<PaperLanguageSet>();
+
+    // ----- Competencies (Chunk 23) -----------------------------------------
+    public DbSet<Competency> Competencies => Set<Competency>();
+
+    // ----- Moderation (Chunk 29) -------------------------------------------
+    public DbSet<Domain.Entities.Moderation.Moderation> ModerationRecords => Set<Domain.Entities.Moderation.Moderation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -893,8 +943,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasIndex(x => new { x.SubjectId, x.SortOrder }).IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_Chapters_SubjectId_SortOrder");
         });
 
-        // ===== Chunk 21 — question approval workflow ============================
-        // ===== Chunk 20 — question authoring + versioning ====================
+        // ===== Chunk 20/21 — question authoring + versioning + approval ========
 
         // ---------- Question ------------------------------------------------
         modelBuilder.Entity<Question>(b =>
@@ -903,11 +952,18 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasKey(x => x.Id);
             b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
             b.Property(x => x.Status).HasConversion<int>().IsRequired();
-
-            b.Property(x => x.Status).HasConversion<int>().IsRequired();
             b.Property(x => x.Type).HasConversion<int>().IsRequired();
             b.Property(x => x.CreatedAtUtc).IsRequired();
             b.Property(x => x.UpdatedAtUtc).IsRequired();
+
+            // Case-study context (Chunk 34)
+            b.Property(x => x.CaseStudyContextHtml).HasColumnType("nvarchar(max)");
+
+            // Self-referencing FK for case-study sub-questions (Chunk 34)
+            b.HasOne(x => x.ParentQuestion)
+             .WithMany(x => x.SubQuestions)
+             .HasForeignKey(x => x.ParentQuestionId)
+             .OnDelete(DeleteBehavior.Restrict);
 
             b.HasMany(x => x.Versions)
              .WithOne(v => v.Question)
@@ -922,6 +978,7 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasIndex(x => x.SubjectId).HasDatabaseName("IX_Questions_SubjectId");
             b.HasIndex(x => x.AuthorTeacherProfileId).HasDatabaseName("IX_Questions_AuthorTeacherProfileId");
             b.HasIndex(x => new { x.InstituteId, x.Status }).HasDatabaseName("IX_Questions_InstituteId_Status");
+            b.HasIndex(x => x.ParentQuestionId).HasDatabaseName("IX_Questions_ParentQuestionId");
         });
 
         // ---------- QuestionVersion -----------------------------------------
@@ -929,14 +986,39 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
         {
             b.ToTable("QuestionVersions");
             b.HasKey(x => x.Id);
+
             b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
-            b.Property(x => x.Marks).IsRequired();
-            b.Property(x => x.DifficultyTag).HasMaxLength(50);
+            b.Property(x => x.Difficulty).HasConversion<int>().IsRequired();
+            b.Property(x => x.BloomLevel).HasConversion<int>().IsRequired();
+            b.Property(x => x.Marks).HasPrecision(8, 2).IsRequired();
+            b.Property(x => x.InstructionsHtml).HasColumnType("nvarchar(max)");
+            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
             b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            // File-upload support (Chunk 34)
+            b.Property(x => x.AllowedMimeTypes).HasMaxLength(500);
+            b.Property(x => x.MaxFileSizeBytes);
+
+            b.HasMany(x => x.Options)
+             .WithOne(o => o.Version)
+             .HasForeignKey(o => o.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.RubricCriteria)
+             .WithOne(r => r.Version)
+             .HasForeignKey(r => r.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasMany(x => x.TestCases)
+             .WithOne(t => t.Version)
+             .HasForeignKey(t => t.VersionId)
+             .OnDelete(DeleteBehavior.Cascade);
 
             b.HasIndex(x => new { x.QuestionId, x.VersionNumber })
              .IsUnique()
              .HasDatabaseName("UX_QuestionVersions_QuestionId_VersionNumber");
+            b.HasIndex(x => new { x.QuestionId, x.IsCurrentVersion })
+             .HasDatabaseName("IX_QuestionVersions_QuestionId_IsCurrentVersion");
         });
 
         // ---------- QuestionReview ------------------------------------------
@@ -968,35 +1050,18 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.Property(x => x.FinalVerdict).HasConversion<int>().IsRequired();
             b.Property(x => x.Comment).HasMaxLength(2000);
             b.HasIndex(x => new { x.ModeratorTeacherProfileId, x.CompletedAtUtc }).HasDatabaseName("IX_QuestionModerations_ModeratorTeacherProfileId_CompletedAtUtc");
+        });
 
-            b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
-            b.Property(x => x.Difficulty).HasConversion<int>().IsRequired();
-            b.Property(x => x.BloomLevel).HasConversion<int>().IsRequired();
-            b.Property(x => x.Marks).HasPrecision(8, 2).IsRequired();
-            b.Property(x => x.InstructionsHtml).HasColumnType("nvarchar(max)");
-            b.Property(x => x.AuthorUserId).IsRequired().HasMaxLength(AppDbContext.IdentityUserIdLength);
-            b.Property(x => x.CreatedAtUtc).IsRequired();
+        // ---------- ExamAttemptAnswer (Chunk 34 FK to FileAsset) -------------
+        modelBuilder.Entity<ExamAttemptAnswer>(b =>
+        {
+            b.ToTable("ExamAttemptAnswers");
+            b.HasKey(x => x.Id);
 
-            b.HasMany(x => x.Options)
-             .WithOne(o => o.Version)
-             .HasForeignKey(o => o.VersionId)
-             .OnDelete(DeleteBehavior.Cascade);
-
-            b.HasMany(x => x.RubricCriteria)
-             .WithOne(r => r.Version)
-             .HasForeignKey(r => r.VersionId)
-             .OnDelete(DeleteBehavior.Cascade);
-
-            b.HasMany(x => x.TestCases)
-             .WithOne(t => t.Version)
-             .HasForeignKey(t => t.VersionId)
-             .OnDelete(DeleteBehavior.Cascade);
-
-            b.HasIndex(x => new { x.QuestionId, x.VersionNumber })
-             .IsUnique()
-             .HasDatabaseName("UX_QuestionVersions_QuestionId_VersionNumber");
-            b.HasIndex(x => new { x.QuestionId, x.IsCurrentVersion })
-             .HasDatabaseName("IX_QuestionVersions_QuestionId_IsCurrentVersion");
+            b.HasOne(x => x.FileAsset)
+             .WithMany()
+             .HasForeignKey(x => x.FileAssetId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ---------- QuestionOption ------------------------------------------

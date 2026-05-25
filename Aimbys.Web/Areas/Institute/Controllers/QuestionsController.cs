@@ -1,9 +1,7 @@
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Questions;
-using Aimbys.Domain.Enums;
-using Aimbys.Infrastructure.Identity;
-using Aimbys.Infrastructure.Persistence;
 using Aimbys.Domain.Entities.Questions;
+using Aimbys.Domain.Enums;
 using Aimbys.Infrastructure.Identity;
 using Aimbys.Infrastructure.Persistence;
 using Aimbys.Web.ViewModels.Questions;
@@ -31,33 +29,10 @@ public class QuestionsController : Controller
         _scope = scope;
     }
 
-    public async Task<IActionResult> Index(CancellationToken ct)
-    {
-        var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
-        if (instituteId is null) return Forbid();
-
-        var questions = await _db.Questions
-            .Where(q => q.InstituteId == instituteId.Value)
-            .OrderByDescending(q => q.UpdatedAtUtc)
-            .ToListAsync(ct);
-
-        return View(questions);
-[Authorize(Roles = Roles.InstituteAdmin)]
-public class QuestionsController : Controller
-{
-    private readonly AppDbContext _db;
-    private readonly IInstituteScope _instituteScope;
-
-    public QuestionsController(AppDbContext db, IInstituteScope instituteScope)
-    {
-        _db = db;
-        _instituteScope = instituteScope;
-    }
-
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        var instituteId = await _instituteScope.GetCurrentInstituteIdAsync(User, ct);
+        var instituteId = await _scope.GetCurrentInstituteIdAsync(User, ct);
         if (instituteId is null)
             return View(new QuestionIndexViewModel());
 
@@ -98,6 +73,15 @@ public class QuestionsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public IActionResult Import(IFormFile? file)
+    {
+        // Stub: import functionality will be implemented in a later chunk
+        TempData["Info"] = "Import functionality is not yet implemented.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> AssignReviewer(Guid questionId, Guid reviewerProfileId, CancellationToken ct)
     {
         var result = await _lifecycle.AssignReviewerAsync(questionId, reviewerProfileId, User, ct);
@@ -108,10 +92,6 @@ public class QuestionsController : Controller
         }
 
         TempData["Success"] = "Reviewer assigned.";
-    public IActionResult Import(IFormFile? file)
-    {
-        // Stub: import functionality will be implemented in a later chunk
-        TempData["Info"] = "Import functionality is not yet implemented.";
         return RedirectToAction(nameof(Index));
     }
 }
