@@ -1783,6 +1783,53 @@ namespace Aimbys.Infrastructure.Migrations
                     b.ToTable("PublishedSnapshots", (string)null);
                 });
 
+            modelBuilder.Entity("Aimbys.Domain.Entities.PrintLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CopyCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DocumentType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("InstituteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<Guid?>("PaperVersionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("PrintedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PrintedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("ResultId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InstituteId")
+                        .HasDatabaseName("IX_PrintLogs_InstituteId");
+
+                    b.HasIndex("PrintedByUserId")
+                        .HasDatabaseName("IX_PrintLogs_PrintedByUserId");
+
+                    b.HasIndex("DocumentType", "PrintedAtUtc")
+                        .HasDatabaseName("IX_PrintLogs_DocumentType_PrintedAtUtc");
+
+                    b.ToTable("PrintLogs", (string)null);
+                });
+
             modelBuilder.Entity("Aimbys.Domain.Entities.Questions.Question", b =>
                 {
                     b.Property<Guid>("Id")
