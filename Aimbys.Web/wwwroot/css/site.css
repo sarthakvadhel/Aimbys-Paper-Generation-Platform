@@ -564,3 +564,9 @@ html[data-aimbys-role="Student"]    { --aimbys-role-accent: #15803d; --aimbys-ro
         box-shadow: none;
     }
 }
+
+
+/* Heatmap (Chunk 31) */
+.aimbys-heatmap { font-size: 0.75rem; }
+.aimbys-heatmap__header { font-size: 0.7rem; color: var(--bs-secondary-color); }
+.aimbys-heatmap__label { display: flex; align-items: center; }

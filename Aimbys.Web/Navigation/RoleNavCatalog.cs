@@ -66,7 +66,7 @@ public static class RoleNavCatalog
         {
             new RoleNavLink("Dashboard",        "Index", "Home",        "SuperAdmin", "speedometer", IsImplemented: true),
             new RoleNavLink("Institutes",       "Index", "Institutes",  "SuperAdmin", "building", IsImplemented: true),
-            new RoleNavLink("Global Analytics", "Index", "Analytics",   "SuperAdmin", "graph-up"),
+            new RoleNavLink("Global Analytics", "Index", "Analytics",   "SuperAdmin", "graph-up", IsImplemented: true),
         }),
         new RoleNavSection("Management", new[]
         {
@@ -129,7 +129,7 @@ public static class RoleNavCatalog
             new RoleNavLink("Dashboard",     "Index", "Home",       "Student", "speedometer", IsImplemented: true),
             new RoleNavLink("My Exams",      "Index", "Exams",      "Student", "book", IsImplemented: true),
             new RoleNavLink("Results",       "Index", "Results",    "Student", "file-earmark-text"),
-            new RoleNavLink("My Analytics",  "Index", "Analytics",  "Student", "graph-up"),
+            new RoleNavLink("My Analytics",  "Index", "Analytics",  "Student", "graph-up", IsImplemented: true),
         }),
     };
 }
