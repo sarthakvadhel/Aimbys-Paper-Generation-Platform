@@ -2,6 +2,7 @@ using Aimbys.Application.Blueprints;
 using Aimbys.Application.OrgTree;
 using Aimbys.Application.Authorization;
 using Aimbys.Application.Audit;
+using Aimbys.Application.Broadcasts;
 using Aimbys.Application.Bulk;
 using Aimbys.Application.Configuration;
 using Aimbys.Application.DocumentRendering;
@@ -13,6 +14,7 @@ using Aimbys.Application.Notifications.Projections;
 using Aimbys.Application.Questions;
 using Aimbys.Application.Scheduling;
 using Aimbys.Application.SoftDelete;
+using Aimbys.Application.SystemHealth;
 using Aimbys.Application.Users;
 using Aimbys.Application.Workflow;
 using Aimbys.Domain.Events;
@@ -21,6 +23,7 @@ using Aimbys.Infrastructure.Blueprints;
 using Aimbys.Infrastructure.OrgTree;
 using Aimbys.Infrastructure.Audit;
 using Aimbys.Infrastructure.Authorization;
+using Aimbys.Infrastructure.Broadcasts;
 using Aimbys.Infrastructure.Bulk;
 using Aimbys.Infrastructure.Configuration;
 using Aimbys.Infrastructure.DocumentRendering;
@@ -35,6 +38,7 @@ using Aimbys.Infrastructure.Retention;
 using Aimbys.Infrastructure.Scheduling;
 using Aimbys.Infrastructure.SoftDelete;
 using Aimbys.Infrastructure.Storage;
+using Aimbys.Infrastructure.SystemHealth;
 using Aimbys.Infrastructure.Users;
 using Aimbys.Infrastructure.Workflow;
 using Microsoft.AspNetCore.Identity;
@@ -242,6 +246,14 @@ public static class DependencyInjection
         services.AddScoped<IQuestionAuthoringService, QuestionAuthoringService>();
         // ----- User management (Chunk 19) -------------------------------
         services.AddScoped<IUserManagementService, UserManagementService>();
+
+        // ----- SuperAdmin governance (Chunk 35) -------------------------
+        // RequestMetricsCollector is a singleton: one rolling 24h
+        // window per process, shared by the metrics middleware and the
+        // SystemHealth viewer. BroadcastService is scoped because it
+        // touches AppDbContext and IAuditWriter.
+        services.AddSingleton<IRequestMetricsCollector, RequestMetricsCollector>();
+        services.AddScoped<IBroadcastService, BroadcastService>();
 
         return services;
     }

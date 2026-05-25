@@ -2,6 +2,7 @@ using Aimbys.Domain.Entities;
 using Aimbys.Domain.Entities.Analytics;
 using Aimbys.Domain.Entities.Audit;
 using Aimbys.Domain.Entities.Blueprints;
+using Aimbys.Domain.Entities.Broadcasts;
 using Aimbys.Domain.Entities.Configuration;
 using Aimbys.Domain.Entities.Evaluation;
 using Aimbys.Domain.Entities.Exams;
@@ -153,6 +154,9 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
 
     // ----- Moderation (Chunk 29) -------------------------------------------
     public DbSet<Domain.Entities.Moderation.Moderation> ModerationRecords => Set<Domain.Entities.Moderation.Moderation>();
+
+    // ----- Broadcasts (Chunk 35) -------------------------------------------
+    public DbSet<Broadcast> Broadcasts => Set<Broadcast>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1177,6 +1181,27 @@ public class AppDbContext : IdentityDbContext<IdentityUser>
             b.HasKey(x => x.Id);
             b.Property(x => x.SnapshotJson).IsRequired().HasColumnType("nvarchar(max)");
             b.HasIndex(x => x.PaperVersionId).HasDatabaseName("IX_PublishedSnapshots_PaperVersionId");
+        });
+
+        // ===== Chunk 35 — broadcasts =======================================
+        modelBuilder.Entity<Broadcast>(b =>
+        {
+            b.ToTable("Broadcasts");
+            b.HasKey(x => x.Id);
+
+            b.Property(x => x.Subject).IsRequired().HasMaxLength(200);
+            b.Property(x => x.BodyHtml).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.AudienceFilterJson).IsRequired().HasColumnType("nvarchar(max)");
+            b.Property(x => x.CreatedByUserId).IsRequired().HasMaxLength(IdentityUserIdLength);
+            b.Property(x => x.StartsAtUtc).IsRequired();
+            b.Property(x => x.EndsAtUtc).IsRequired();
+            b.Property(x => x.CreatedAtUtc).IsRequired();
+
+            b.HasIndex(x => x.StartsAtUtc).HasDatabaseName("IX_Broadcasts_StartsAtUtc");
+            b.HasIndex(x => x.EndsAtUtc).HasDatabaseName("IX_Broadcasts_EndsAtUtc");
+            b.HasIndex(x => x.IsActive).HasDatabaseName("IX_Broadcasts_IsActive");
+            b.HasIndex(x => new { x.IsActive, x.StartsAtUtc, x.EndsAtUtc })
+             .HasDatabaseName("IX_Broadcasts_IsActive_StartsAtUtc_EndsAtUtc");
         });
 
         ApplySoftDeleteQueryFilters(modelBuilder);

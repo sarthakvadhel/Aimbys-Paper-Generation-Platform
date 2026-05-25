@@ -55,6 +55,14 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+// Request-metrics middleware (Chunk 35): captures status code and
+// elapsed milliseconds for every request and feeds the in-memory
+// RequestMetricsCollector that powers the SuperAdmin SystemHealth
+// dashboard. Sits right after UseRouting so endpoint metadata is
+// available but before authn/authz so 401/403/redirect responses
+// are also counted.
+app.UseMiddleware<Aimbys.Infrastructure.SystemHealth.RequestMetricsMiddleware>();
+
 // Authentication MUST come before Authorization. Identity wires the cookie
 // scheme into the request via UseAuthentication.
 app.UseAuthentication();

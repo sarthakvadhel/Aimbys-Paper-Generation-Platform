@@ -72,12 +72,12 @@ public static class RoleNavCatalog
         {
             new RoleNavLink("Licenses",         "Index", "Licenses",    "SuperAdmin", "credit-card"),
             new RoleNavLink("Security Monitor", "Index", "Security",    "SuperAdmin", "shield"),
-            new RoleNavLink("System Health",    "Index", "System",      "SuperAdmin", "hdd-stack"),
+            new RoleNavLink("System Health",    "Index", "System",      "SuperAdmin", "hdd-stack", IsImplemented: true),
         }),
         new RoleNavSection("Governance", new[]
         {
-            new RoleNavLink("Audit Logs",       "Index", "Audit",       "SuperAdmin", "activity"),
-            new RoleNavLink("Broadcasts",       "Index", "Broadcasts",  "SuperAdmin", "broadcast"),
+            new RoleNavLink("Audit Logs",       "Index", "Audit",       "SuperAdmin", "activity", IsImplemented: true),
+            new RoleNavLink("Broadcasts",       "Index", "Broadcasts",  "SuperAdmin", "broadcast", IsImplemented: true),
         }),
     };
 
